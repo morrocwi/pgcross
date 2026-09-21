@@ -36,6 +36,12 @@ def create_app(ctx, allow_unsafe_dev: bool = False) -> "FastAPI":
     except ImportError:
         pass  # Decision Forge structured endpoint — see decision.py
 
+    try:
+        from .systemone import router as systemone_router
+        app.include_router(systemone_router)
+    except ImportError:
+        pass  # TypeSafe/Jev-compatible System One provider endpoint — see systemone.py
+
     @app.get("/healthz")
     async def healthz():
         backend_ok = ctx.backend is not None

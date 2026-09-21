@@ -110,6 +110,27 @@ pgcross serve --unsafe-dev --safety classifier
 Neither `keyword` nor `classifier` is proven safe for production without red-teaming — see
 "Known limits" below.
 
+### pgcross as a Jev/TypeSafe-compatible System One *provider*
+
+`decision/backend.py`'s `SystemOneHTTPBackend` is the client side — pgcross calling OUT to a
+TypeSafe/System-One-compatible server. `POST /v1/systemone` (served by every `pgcross serve`,
+no extra flag) is the other direction: pgcross itself answering typed `noul`/`score`/`choice`
+questions for any Jev/TypeSafe-compatible caller, backed by pgcross's own full deterministic-
+first pipeline (engine cards, RAG, the witness-before-model gate), not a separate, weaker code
+path. Verified full-circle: pgcross's own `SystemOneHTTPBackend` client pointed at pgcross's own
+`/v1/systemone` endpoint, round-tripped for real.
+
+```bash
+curl localhost:8000/v1/systemone \
+  -H "Content-Type: application/json" \
+  -d '{"state":{"query":"10*10"},"questions":{"admissible":{"type":"noul","instructions":"Is 100 correct for 10*10?"}}}'
+```
+
+Answer probabilities here are a **declared tier-floor mapping** (I1's tier ladder above, e.g.
+`Th_coqc`/`finite_diagnostic` → 1.0, `Wf` → 0.65), not a measured model confidence — see
+`server/systemone.py`'s module docstring for the exact, explicit mapping. This is pgcross
+*speaking the wire contract*, not pgcross *being* Jev/TypeSafe — no affiliation is claimed.
+
 ## Configuration
 
 See `configs/default.yaml`.
@@ -128,6 +149,12 @@ pgcross check --conformance    # verify I1-I8 against your loaded config
 - **Conformance:** 46-test suite green (`pytest tests/conformance -q`, re-verified 2026-09-21;
   I1-I8 fully exercised, including differential tiering over the full enum product with zero
   disagreements)
+- **Decision Forge benchmark: 12/12 (100%)** — `eval/decision_forge_benchmark.py`, a small (12
+  case), hand-labeled benchmark of the whole wired system (deterministic pipeline + real
+  OpenThai-SystemOne backend), not the bare model. **Not comparable** to a general-purpose NLU
+  benchmark — same honesty discipline as the LOOCV note above. Covers: deterministic queries
+  correctly bypass the model entirely (2/2), harm-net safety override wins regardless of what the
+  model would say (2/2), real model-assisted judgment in English (4/4) and Thai (4/4).
 
 ## Engine cards
 
