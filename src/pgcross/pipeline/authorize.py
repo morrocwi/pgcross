@@ -5,9 +5,15 @@ from .. import crisis_resources
 from ..core.enums import Tier, CType, Grounding, Stakes, ASSERTIVE
 from ..core.models import Response, VerifierResult
 from ..core.s4 import S4
-from ..decision.schema import AuthorizationResult, AuthorizationStatus
-from ..authorization.policy import classify_and_authorize, needs_decision_backend
+from ..decision.schema import AuthorizationResult, AuthorizationStatus, DecisionQuestion
+from ..authorization.policy import (
+    authorize_decision_proposal,
+    classify_and_authorize,
+    needs_decision_backend,
+)
 from .lens import consultation_candidate, clarify_or_consultation, pick_primary
+
+_MODEL_QUESTION_ID = "primary_candidate_admissible"
 
 # Marker substring identifying an already-attached crisis-resources block, so
 # `_attach_crisis_resources` never double-appends if it is called more than once against the
@@ -67,7 +73,7 @@ def _witness_probe(cand: Any) -> VerifierResult:
     )
 
 
-def _authorize_status(cands: list, q) -> tuple[AuthorizationStatus, str, Any]:
+def _authorize_status(cands: list, q, decision_backend: Any = None) -> tuple[AuthorizationStatus, str, Any]:
     """Harm/stakes taxonomy (`classify_and_authorize`, `authorization/policy.py`) + witness-
     before-model gate (`needs_decision_backend`), per the project's architecture design notes
     §2.3/§3/§4 item 1. Returns `(status, reason, danger_source)`; `danger_source` is the
@@ -79,6 +85,14 @@ def _authorize_status(cands: list, q) -> tuple[AuthorizationStatus, str, Any]:
     independent harm net first" ordering); every surviving candidate's own content is then
     checked too, since a DANGER-triggering candidate can originate from a provider (e.g. a
     retrieved/composed value) even when the raw query text itself did not match the harm net.
+
+    `decision_backend` (optional, a `decision.backend.DecisionBackend`-shaped object, e.g.
+    `OpenThaiSystemOneLocalBackend`/`SystemOneHTTPBackend`/`MockBackend`) is only ever reached
+    AFTER the harm-net check above found nothing AND `needs_decision_backend()` (A3 witness +
+    D/M.77.v1 resolution gate) says no deterministic resolution exists either — "the model
+    proposed, PGCross authorized" (`authorization/policy.py::authorize_decision_proposal`), never
+    the reverse. `decision_backend=None` (the default) preserves this stage's original honest
+    HOLD-default behavior exactly.
     """
     q_status = classify_and_authorize(q.text)
     if q_status in (AuthorizationStatus.REJECT, AuthorizationStatus.ESCALATE):
@@ -91,18 +105,8 @@ def _authorize_status(cands: list, q) -> tuple[AuthorizationStatus, str, Any]:
 
     # No DANGER anywhere (query or candidates). q_status is now ADMIT (ADVISORY) or HOLD
     # (WEAKNESS) — still gate it through "witness before model" (A3 + D/M.77.v1) for the primary
-    # candidate: if resolving it would require a DecisionBackend call, and none is wired into
-    # the live pipeline yet, the honest answer is HOLD, not a fabricated model call.
-    #
-    # *** TEMPORARY BEHAVIOR — Phase C dependency, per the project's architecture design notes
-    # §3/§6a *** There is NO DecisionBackend wired into the live pipeline yet (out of scope this
-    # pass per the project's architecture design notes §3 — a different, later stream, internal
-    # task-tracking notes item 18/31). When `needs_decision_backend()` would return True (no finite witness resolves the
-    # primary candidate, and its S4 resolution stays S4.BOT), this defaults straight to
-    # `AuthorizationStatus.HOLD` rather than ever fabricating a DecisionBackend call that does
-    # not exist. THIS WILL CHANGE once a real DecisionBackend is wired into the live pipeline —
-    # at that point the ⊥ case should route to `DecisionBackend.decide()` per §3's diagram
-    # instead of defaulting to HOLD unconditionally.
+    # candidate: if resolving it would require a DecisionBackend call, only make that call when
+    # one is actually configured; otherwise the honest answer stays HOLD, never a fabricated call.
     if cands:
         primary_probe = pick_primary(cands)
         primary = cands[primary_probe]
@@ -115,13 +119,40 @@ def _authorize_status(cands: list, q) -> tuple[AuthorizationStatus, str, Any]:
         # handled by the caller's normal candidate filtering, not the ⊥-state
         # `needs_decision_backend` gates on.
         if needs_decision_backend(gate=None, candidate=vr, s4_result=S4.BOT):
-            return (
-                AuthorizationStatus.HOLD,
-                "no finite witness resolved the primary candidate and no DecisionBackend is "
-                "wired into the live pipeline yet (temporary default per "
-                "the project's architecture design notes §3) — defaulting to HOLD, never a guess",
-                None,
+            if decision_backend is None:
+                return (
+                    AuthorizationStatus.HOLD,
+                    "no finite witness resolved the primary candidate and no DecisionBackend is "
+                    "configured for this call — defaulting to HOLD, never a guess",
+                    None,
+                )
+            # "The model proposed, PGCross authorized": one typed question about the primary
+            # candidate, per DecisionBackend's own documented FAILURE POLICY (decision/backend.py)
+            # -- a raise/timeout here is THIS caller's responsibility to default to HOLD, exactly
+            # like the no-backend-configured branch above, never propagated as an unhandled error.
+            question = DecisionQuestion(
+                id=_MODEL_QUESTION_ID,
+                text=(
+                    f"Given the query {q.text!r}, is the following proposed answer admissible "
+                    f"as a response: {primary.content!r}?"
+                ),
+                kind="noul",
             )
+            try:
+                proposal = decision_backend.decide(
+                    state={"query": q.text, "candidate_content": primary.content,
+                           "candidate_tier": str(primary.tier) if primary.tier else None},
+                    questions=[question],
+                )
+            except Exception as exc:  # noqa: BLE001 -- FAILURE POLICY: any backend failure -> HOLD
+                return (
+                    AuthorizationStatus.HOLD,
+                    f"DecisionBackend call raised ({type(exc).__name__}: {exc}) — defaulting to "
+                    "HOLD per its documented FAILURE POLICY, never a guess",
+                    None,
+                )
+            status, reason = authorize_decision_proposal(proposal, _MODEL_QUESTION_ID)
+            return status, reason, None
     return q_status, f"harm/stakes taxonomy: {q_status.value}", None
 
 
@@ -158,7 +189,9 @@ def authorize(cands: list, q, cfg) -> Response:
             if c.ctype == CType.CONSULTATION: primary = i; break
 
     # ---- NEW (Stream 3 step 6b): ADMIT/HOLD/REJECT/ESCALATE + witness-before-model gate -------
-    status, reason, danger_source = _authorize_status(cands, q)
+    # cfg.decision_backend is optional (getattr default None) -- callers that don't configure one
+    # get the exact same honest HOLD-on-⊥ behavior as before a real backend existed.
+    status, reason, danger_source = _authorize_status(cands, q, getattr(cfg, "decision_backend", None))
 
     # F1 invariant, first-ever test in this codebase (tests/test_f1_gate_bypass.py): an
     # ESCALATE/REJECT-classified candidate can NEVER become Response.primary, no matter its

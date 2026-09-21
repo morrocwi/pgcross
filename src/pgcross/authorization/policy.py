@@ -46,6 +46,7 @@ __all__ = [
     "needs_decision_backend",
     "classify_and_authorize",
     "forged_tier_guard",
+    "authorize_decision_proposal",
 ]
 
 
@@ -307,3 +308,66 @@ def forged_tier_guard(
             "alone"
         )
     return ceiling, ""
+
+
+# ---------------------------------------------------------------------------
+# authorize_decision_proposal — the ONLY place a DecisionBackend's proposal
+# (decision/backend.py: OpenThaiSystemOneLocalBackend, SystemOneHTTPBackend, MockBackend,
+# DeterministicBackend) is allowed to influence AuthorizationStatus. Reached exclusively from the
+# "Witness before Model" gate (needs_decision_backend() == True) -- i.e. only ever AFTER the
+# deterministic harm-net check has already run and found nothing (classify_and_authorize() never
+# returned REJECT/ESCALATE) and AFTER A3/resolution_gate found no finite witness.
+# ---------------------------------------------------------------------------
+
+def authorize_decision_proposal(
+    proposal: Any, question_id: str, admit_threshold: float = 0.7,
+) -> tuple[AuthorizationStatus, str]:
+    """Turn one `DecisionBackend` `DecisionProposal` answer into an `AuthorizationStatus` --
+    **restricted to ADMIT or HOLD only, never REJECT/ESCALATE.**
+
+    This restriction is deliberate and load-bearing, not an oversight: REJECT/ESCALATE are
+    reserved exclusively for the deterministic `harm_net.py` path
+    (`classify_and_authorize`/`classify_danger_subtype`), which already ran and found nothing
+    before this function is ever reached (see `pipeline/authorize.py::_authorize_status`'s call
+    order). A probabilistic model proposal is never allowed to be the thing that blocks or
+    escalates a request -- per the letter's own rule ("a model may propose, never authorize") and
+    this project's F1 invariant (confidence never bypasses a failed gate), a model's job here is
+    at most to *unblock* a HOLD into an ADMIT when it is confident, never to *create* a harder
+    refusal than the deterministic layer already decided. If a model proposal is itself alarming
+    (e.g. it answers `noul` "yes" to a harm-adjacent question), the correct fix is a better
+    harm-net pattern or stakes classifier -- not letting this function reach for REJECT/ESCALATE.
+
+    `question_id` selects which of the proposal's `answers` to read (a caller typically asks one
+    question about the primary candidate/query per call -- see
+    `pipeline/authorize.py::_authorize_status`). Returns `(AuthorizationStatus.HOLD, reason)` if
+    `question_id` isn't in the proposal, if the answer's `resolution` is `S4.BOT` (the model
+    itself couldn't answer), or if `probability < admit_threshold` -- ADMIT only when the model
+    gave a genuinely confident, determinate answer.
+    """
+    answer = None
+    for a in getattr(proposal, "answers", []):
+        if getattr(a, "question_id", None) == question_id:
+            answer = a
+            break
+    if answer is None:
+        return AuthorizationStatus.HOLD, (
+            f"DecisionBackend proposal (backend_id={getattr(proposal, 'backend_id', '?')!r}) "
+            f"carried no answer for question_id={question_id!r} -- HOLD, never a guess"
+        )
+    if answer.resolution == S4.BOT:
+        return AuthorizationStatus.HOLD, (
+            f"DecisionBackend {getattr(proposal, 'backend_id', '?')!r} itself could not resolve "
+            f"{question_id!r} (S4.BOT) -- HOLD"
+        )
+    if answer.probability < admit_threshold:
+        return AuthorizationStatus.HOLD, (
+            f"DecisionBackend {getattr(proposal, 'backend_id', '?')!r} proposed "
+            f"{answer.label!r} for {question_id!r} but probability={answer.probability:.3f} is "
+            f"below admit_threshold={admit_threshold} -- HOLD, not confident enough to admit"
+        )
+    return AuthorizationStatus.ADMIT, (
+        f"DecisionBackend {getattr(proposal, 'backend_id', '?')!r} proposed {answer.label!r} for "
+        f"{question_id!r} with probability={answer.probability:.3f} (>= {admit_threshold}); "
+        "PGCross admits the proposal after witness-before-model found no deterministic resolution "
+        "-- the model proposed, PGCross authorized"
+    )

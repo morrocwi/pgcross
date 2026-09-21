@@ -30,5 +30,13 @@ pgcross = "pgcross.cli:app"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.pytest.ini_options]
+# Any local staging/scratch subdirectory that embeds its own nested src/pgcross/ + tests/ tree
+# must be excluded from collection: pytest's default test-collection module caching means
+# collecting ITS test files first can silently poison sys.modules['pgcross'] for every test
+# collected afterward from the real tests/ directory (a stale/incomplete `pgcross` package
+# wins the import cache over the real editable install).
+addopts = "--ignore=_public_core_staging"
+
 [project.urls]
 Homepage = "https://github.com/morrocwi/pgcross"

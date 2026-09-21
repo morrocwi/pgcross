@@ -20,6 +20,11 @@ class Config:
     high_stakes_tier_bar: Tier = Tier.finite_diagnostic
     enable_imagine_bridge: bool = False   # OFF by default (I8): see pipeline/imagine.py
     enable_general_chat_fallback: bool = False   # OFF by default (I8): see _general_chat_fallback below
+    decision_backend: object = None   # optional decision.backend.DecisionBackend, e.g.
+        # OpenThaiSystemOneLocalBackend/SystemOneHTTPBackend/MockBackend. None (default) preserves
+        # pipeline/authorize.py's honest HOLD-on-unresolved behavior; only reached AFTER the
+        # deterministic harm-net check + witness-before-model gate both find nothing (see
+        # pipeline/authorize.py::_authorize_status) -- "the model proposed, PGCross authorized."
 
 @dataclass
 class Ctx:

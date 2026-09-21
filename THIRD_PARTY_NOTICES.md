@@ -82,6 +82,14 @@ preserved here as required by each respective license.
 - **Compliance note:** Both the Python bindings and the underlying llama.cpp C++ library are MIT.
   Permissive. No conditions beyond copyright notice retention. Compliant.
 
+### openthai_systemone
+- **License:** Apache-2.0
+- **Copyright:** iapp-technology and the OpenThai team
+- **SPDX:** Apache-2.0
+- **Compliance note:** Permissive, same terms as this project's own license. Not a `pyproject.toml`
+  dependency -- lazy-imported only inside `decision/backend.py`'s `OpenThaiSystemOneLocalBackend`,
+  so a caller who never instantiates that class never needs it installed. Permissive, compliant.
+
 ---
 
 ## Development Dependencies (not shipped in production builds)

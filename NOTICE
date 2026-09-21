@@ -54,6 +54,12 @@ License: MIT
 Copyright: Copyright (c) Andrei Betlen and contributors (Python bindings); llama.cpp: Georgi
 Gerganov and contributors (MIT)
 
+Package: openthai_systemone (optional, lazy-imported by decision/backend.py's
+OpenThaiSystemOneLocalBackend; not a pyproject.toml dependency -- callers who want this backend
+install it themselves)
+License: Apache-2.0
+Copyright: Copyright (c) iapp-technology and the OpenThai team
+
 ## Development dependencies (not shipped in production builds)
 
 Package: pytest ([dev] extra)

@@ -174,11 +174,27 @@ def evidence_candidate_to_decision_candidate(
 
 
 class DecisionQuestion(BaseModel):
-    """A single typed question posed to a `DecisionBackend` (`decision/backend.py`)."""
+    """A single typed question posed to a `DecisionBackend` (`decision/backend.py`).
+
+    `kind` matches the three typed-question shapes a real System-One-style backend (e.g.
+    OpenThai-SystemOne) supports natively, so `decision/backend.py`'s implementations can map a
+    `DecisionQuestion` onto the backend's own question type directly, without a lossy translation
+    layer:
+      - `"choice"` (default, backward-compatible with the original options-only shape): pick one
+        of up to 255 labeled options. `options` holds the option labels; `option_descriptions`
+        (parallel dict, optional) gives each option a longer instruction/criterion string, since a
+        real backend answers more reliably from a description than a bare label alone.
+      - `"score"`: an ordered scale from 2-10 described levels. `levels` holds the level
+        descriptions in order (e.g. `["not frustrated", "mildly annoyed", "very frustrated"]`).
+      - `"noul"`: a yes/no question — no `options`/`levels` needed, `text` is the question itself.
+    """
 
     id: str
     text: str
-    options: list[str] = Field(default_factory=list)  # empty = open/free-form answer
+    kind: str = "choice"  # "choice" | "score" | "noul"
+    options: list[str] = Field(default_factory=list)  # empty = open/free-form answer (kind="choice")
+    option_descriptions: dict[str, str] = Field(default_factory=dict)  # optional, kind="choice"
+    levels: list[str] = Field(default_factory=list)  # ordered level descriptions, kind="score"
 
 
 class DecisionAnswer(BaseModel):
@@ -195,6 +211,7 @@ class DecisionAnswer(BaseModel):
     resolution: S4
     label: str | None = None  # free-form content when resolution is POS/NEG and options is empty
     probability: float = 0.0  # in [0, 1]; meaningless/ignored when resolution is BOT
+    probabilities: dict[str, float] = Field(default_factory=dict)  # full distribution, kind="choice"
 
     @field_serializer("resolution")
     def _ser_resolution(self, v: S4) -> str:
