@@ -23,6 +23,7 @@ llamacpp = ["llama-cpp-python>=0.2.70"]
 vllm = ["vllm>=0.4"]
 rag = ["sentence-transformers>=2.7", "pypdf>=4"]
 openthai = ["openthai-systemone"]
+safety = ["transformers>=4.40", "torch>=2.0"]
 dev = ["pytest>=8", "pip-licenses>=4"]
 
 [project.scripts]
@@ -37,7 +38,18 @@ where = ["src"]
 # collecting ITS test files first can silently poison sys.modules['pgcross'] for every test
 # collected afterward from the real tests/ directory (a stale/incomplete `pgcross` package
 # wins the import cache over the real editable install).
-addopts = "--ignore=_public_core_staging"
+#
+# "-m 'not real_weights'": excludes tests that load real GPU-resident model weights
+# (OpenThai-SystemOne, ~0.8B params) from the default run. Found by real failure 2026-09-21:
+# this machine's GPU has only 4GB VRAM, and running these tests alongside the RAG suite's
+# sentence-transformers embedding model in the same process genuinely exceeds it
+# (torch.OutOfMemoryError), even though each test passes cleanly in isolation. This is a real
+# resource constraint, not a flaky test -- run these explicitly with `pytest -m real_weights`
+# when you have the GPU/CPU headroom, ideally not alongside anything else GPU-heavy.
+addopts = "--ignore=_public_core_staging -m 'not real_weights'"
+markers = [
+    "real_weights: loads real downloaded model weights onto GPU/CPU; excluded from the default run, see addopts above",
+]
 
 [project.urls]
 Homepage = "https://github.com/morrocwi/pgcross"

@@ -54,11 +54,23 @@ License: MIT
 Copyright: Copyright (c) Andrei Betlen and contributors (Python bindings); llama.cpp: Georgi
 Gerganov and contributors (MIT)
 
-Package: openthai_systemone (optional, lazy-imported by decision/backend.py's
-OpenThaiSystemOneLocalBackend; not a pyproject.toml dependency -- callers who want this backend
-install it themselves)
+Package: openthai_systemone ([openthai] extra, lazy-imported by decision/backend.py's
+OpenThaiSystemOneLocalBackend)
 License: Apache-2.0
 Copyright: Copyright (c) iapp-technology and the OpenThai team
+
+Package: transformers ([safety] extra, lazy-imported by safety.py's ClassifierSafety)
+License: Apache-2.0
+Copyright: Copyright (c) The HuggingFace team
+
+Package: torch ([safety] extra, transformers' inference backend)
+License: BSD-3-Clause
+Copyright: Copyright (c) PyTorch Contributors
+
+Package: unitary/toxic-bert (model weights, downloaded at runtime via [safety] extra, not
+redistributed in this repository)
+License: Apache-2.0
+Copyright: Copyright (c) unitary and contributors
 
 ## Development dependencies (not shipped in production builds)
 

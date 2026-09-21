@@ -86,9 +86,30 @@ preserved here as required by each respective license.
 - **License:** Apache-2.0
 - **Copyright:** iapp-technology and the OpenThai team
 - **SPDX:** Apache-2.0
-- **Compliance note:** Permissive, same terms as this project's own license. Not a `pyproject.toml`
-  dependency -- lazy-imported only inside `decision/backend.py`'s `OpenThaiSystemOneLocalBackend`,
-  so a caller who never instantiates that class never needs it installed. Permissive, compliant.
+- **Compliance note:** Permissive, same terms as this project's own license. `[openthai]` extra,
+  lazy-imported only inside `decision/backend.py`'s `OpenThaiSystemOneLocalBackend`, so a caller
+  who never instantiates that class never needs it installed. Permissive, compliant.
+
+### transformers
+- **License:** Apache-2.0
+- **Copyright:** The HuggingFace team
+- **SPDX:** Apache-2.0
+- **Compliance note:** Permissive. `[safety]` extra, lazy-imported only inside `safety.py`'s
+  `ClassifierSafety`. Compliant.
+
+### torch
+- **License:** BSD-3-Clause (PyTorch's own license, BSD-style)
+- **Copyright:** PyTorch Contributors
+- **SPDX:** BSD-3-Clause
+- **Compliance note:** Permissive. `[safety]` extra, `transformers`' inference backend for
+  `ClassifierSafety`. Compliant.
+
+### unitary/toxic-bert (model weights)
+- **License:** Apache-2.0
+- **Copyright:** unitary and contributors
+- **SPDX:** Apache-2.0
+- **Compliance note:** Model weights, not code — downloaded at runtime via the Hugging Face Hub
+  when `--safety classifier` is used; not redistributed in this repository. Permissive, compliant.
 
 ---
 

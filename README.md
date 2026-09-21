@@ -83,6 +83,33 @@ first use (standard `huggingface_hub` caching — a one-time transparent downloa
 the backend is actually reached, not a manual step you do beforehand). See `REPO_ROLE.md` for
 what this backend can and cannot do: it only ever *proposes* — see the Invariants above.
 
+**`examples/decision_backend_demo.py`** runs the same chain directly (no server) — a captured
+real run (2026-09-21, real weights, not a mock):
+
+```
+$ python examples/decision_backend_demo.py
+[demo] query: 'epidemic beta=0.3 gamma=0.1 lambda_max=3?'
+[demo] authorization status: ADMIT
+[demo] authorization reason: DecisionBackend 'openthai-systemone-local' proposed 'yes' for
+'primary_candidate_admissible' with probability=0.797 (>= 0.7); PGCross admits the proposal
+after witness-before-model found no deterministic resolution -- the model proposed, PGCross
+authorized
+```
+
+### Optional: a real trained safety classifier
+
+`--safety classifier` layers [`unitary/toxic-bert`](https://huggingface.co/unitary/toxic-bert)
+(Apache-2.0, a real trained model) on top of the keyword stub via OR — either flagging is enough
+to refuse:
+
+```bash
+pip install -e .[safety]
+pgcross serve --unsafe-dev --safety classifier
+```
+
+Neither `keyword` nor `classifier` is proven safe for production without red-teaming — see
+"Known limits" below.
+
 ## Configuration
 
 See `configs/default.yaml`.
@@ -118,12 +145,15 @@ below.
 - Real-query routing: 0.785 — the 0.911 LOOCV figure is optimistic by 12.6pp; do not cite it as accuracy
 - RAG `support_check` entailment gate: lexical-only as shipped (NLI gate STUBBED — measure recall on
   paraphrased unsupported claims before treating it as a real grounding gate)
-- Safety: keyword stub only — a real classifier and red-team are required before any external use
+- Safety: `keyword` (default) is a stub; `--safety classifier` adds a real trained model
+  (`unitary/toxic-bert`) but neither has been red-teamed — required before any production use
 - Single-turn only (v0.1 declared; multi-turn is out of scope)
 
 ## What is not yet done
 
-- Real safety classifier (PROVE-IT; startup guarantees a layer is present, not that it works)
+- Red-teaming of either safety layer (PROVE-IT; startup guarantees a layer is present, not that
+  it works — `--safety classifier` is a real trained model now, not a stub, but still unproven
+  against adversarial inputs)
 - NLI entailment in `support_check` (PROVE-IT; current lexical gate will pass paraphrases)
 - Larger-model comparison K2/K3 (OPEN; not a release blocker)
 
@@ -133,8 +163,8 @@ PGCross is licensed under the Apache License 2.0 — see `LICENSE`. It is assemb
 permissive OSS dependencies (MIT/BSD/Apache-2.0 — see `THIRD_PARTY_NOTICES.md` and
 `licenses/AUDIT.md`). GPL/AGPL dependencies are banned; CI fails on them.
 
-The safety layer shipped here is a keyword stub, not a production classifier (see "Known limits"
-above) — treat this as research/development-stage software, not a hardened production service,
-until a real safety classifier lands.
+Both shipped safety layers (`keyword`, `classifier`) are unproven against adversarial inputs
+(see "Known limits" above) — treat this as research/development-stage software, not a hardened
+production service, until real red-teaming lands.
 
 See `CLAIMS.md` for pre-registered claims with CIs.

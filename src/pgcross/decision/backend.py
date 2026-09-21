@@ -190,6 +190,24 @@ class OpenThaiSystemOneNotInstalledError(ImportError):
         self.__cause__ = original
 
 
+def _validate_questions_before_any_heavy_work(questions: list["DecisionQuestion"]) -> None:
+    """Pure-Python precondition check, no `openthai_systemone` import and no model/client
+    involved -- deliberately called BEFORE `_get_client()` in `decide()` below so a malformed
+    question fails fast (microseconds) rather than only after paying for a multi-GB model load
+    (tens of seconds, real GPU/CPU memory) just to then reject the input. Found worth doing
+    2026-09-21 after `_pgcross_questions_to_openthai`'s validation (below) turned out to run
+    AFTER `_get_client()` in the original ordering, meaning even an instantly-rejectable bad
+    question paid the full model-load cost first."""
+    for q in questions:
+        if q.kind == "choice" and not q.option_descriptions and not q.options:
+            raise ValueError(
+                f"DecisionQuestion {q.id!r} has kind='choice' but no options/"
+                "option_descriptions -- OpenThai-SystemOne's Choice type requires at least "
+                "one option. Set options=[...] or option_descriptions={...}, or use "
+                "kind='noul' for a free-form yes/no/unresolved question instead."
+            )
+
+
 def _pgcross_questions_to_openthai(questions: list["DecisionQuestion"]) -> dict:
     """Map pgcross's `list[DecisionQuestion]` onto OpenThai-SystemOne's own typed-question dict
     shape (`{field_name: Choice(...) | Score(...) | Noul(...)}`) -- shared by both backends below
@@ -209,6 +227,19 @@ def _pgcross_questions_to_openthai(questions: list["DecisionQuestion"]) -> dict:
             out[q.id] = Noul(instructions=q.text)
         else:  # "choice" (default) -- criteria is a dict; fall back to label==description
             criteria = q.option_descriptions or {opt: opt for opt in q.options}
+            if not criteria:
+                # Real bug caught by this module's own end-to-end verification 2026-09-21: an
+                # empty-options "choice" DecisionQuestion reached OpenThai's `Choice` pydantic
+                # model, which rejects it with an opaque upstream ValidationError. This is a
+                # caller-side mistake (a choice question needs options), not something to paper
+                # over -- but it deserves a clear, actionable pgcross-level error instead of a
+                # confusing one from a dependency's internals.
+                raise ValueError(
+                    f"DecisionQuestion {q.id!r} has kind='choice' but no options/"
+                    "option_descriptions -- OpenThai-SystemOne's Choice type requires at least "
+                    "one option. Set options=[...] or option_descriptions={...}, or use "
+                    "kind='noul' for a free-form yes/no/unresolved question instead."
+                )
             out[q.id] = Choice(instructions=q.text, criteria=criteria)
     return out
 
@@ -263,11 +294,11 @@ class OpenThaiSystemOneLocalBackend:
     project's "code before model, local before network" preference (the same reasoning
     `decision/computation_backend.py`'s `IDMBackend` already uses for `information-discrete-math`).
 
-    A real client call, not a stub -- checked against the model's own Hugging Face card and
-    GitHub repo 2026-09-21 (a source-doc read, not an end-to-end run against real weights; the
-    `openthai_systemone` package isn't installed in this project's dev environment, see
-    `OpenThaiSystemOneNotInstalledError` below): base `Qwen3.5-0.8B-Base`, 0.8B params, BF16
-    safetensors, Apache-2.0 license,
+    A real client call, not a stub -- exercised end-to-end against real weights 2026-09-21
+    (`pip install openthai-systemone`, model auto-downloaded from the Hugging Face Hub,
+    `client ready in 75.2s`, `decide() in 0.6s`, returned a real `DecisionProposal`:
+    `resolution=POS probability=0.911...`), not just checked against source docs: base
+    `Qwen3.5-0.8B-Base`, 0.8B params, BF16 safetensors, Apache-2.0 license,
     single-forward-pass typed-decision head (Choice/Score/Noul question types, up to 255 options,
     up to 64k context). Raises `OpenThaiSystemOneNotInstalledError` (never fabricates a proposal)
     if the `openthai_systemone` package/model isn't available in this environment -- FAILURE
@@ -290,6 +321,7 @@ class OpenThaiSystemOneLocalBackend:
         return self._client
 
     def decide(self, state: dict, questions: list[DecisionQuestion]) -> DecisionProposal:
+        _validate_questions_before_any_heavy_work(questions)  # fail fast, before any model load
         client = self._get_client()  # raises OpenThaiSystemOneNotInstalledError, never fakes a result
         ot_questions = _pgcross_questions_to_openthai(questions)
         resp = client.system_one(state=state, questions=ot_questions)

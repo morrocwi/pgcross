@@ -22,6 +22,23 @@ def _questions() -> list[DecisionQuestion]:
     ]
 
 
+def _openthai_installed() -> bool:
+    try:
+        import openthai_systemone  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def _noul_questions() -> list[DecisionQuestion]:
+    """OpenThai's `Choice` type rejects an empty-options question (see
+    `_pgcross_questions_to_openthai`'s own guard) -- `_questions()` above has one (`q1`), by
+    design, for backends that never validate Choice shape (Mock/Deterministic). Real OpenThai
+    calls need well-formed questions; `kind='noul'` (free-form yes/no/unresolved, no options
+    needed) matches how `pipeline/authorize.py` actually calls this backend in production."""
+    return [DecisionQuestion(id="admissible", text="Is 100 the correct answer for 10*10?", kind="noul")]
+
+
 class TestMockBackend:
     def test_default_returns_bot_for_every_question(self) -> None:
         backend = MockBackend()
@@ -172,14 +189,17 @@ class TestSystemOneHTTPBackend:
 
 
 class TestOpenThaiSystemOneLocalBackend:
-    """openthai_systemone is genuinely not installed in this dev environment -- this exercises
-    the real, honest not-installed path, matching IDMBackend's precedent in
-    decision/computation_backend.py (never silently no-op, never fabricate a result)."""
+    """Covers both environments honestly rather than assuming one: when `openthai_systemone`
+    isn't installed, exercises the real not-installed path (matching `IDMBackend`'s precedent in
+    `decision/computation_backend.py` -- never silently no-op, never fabricate a result); when it
+    IS installed, `TestOpenThaiSystemOneLocalBackendRealWeights` below runs a real end-to-end
+    call against real model weights instead."""
 
     def test_constructs_with_default_model(self) -> None:
         backend = OpenThaiSystemOneLocalBackend()
         assert backend.model == "iapp/OpenThai-SystemOne"
 
+    @pytest.mark.skipif(_openthai_installed(), reason="openthai_systemone IS installed here -- see TestOpenThaiSystemOneLocalBackendRealWeights")
     def test_decide_raises_documented_error_when_package_not_installed(self) -> None:
         backend = OpenThaiSystemOneLocalBackend()
         with pytest.raises(OpenThaiSystemOneNotInstalledError) as exc_info:
@@ -191,3 +211,44 @@ class TestOpenThaiSystemOneLocalBackend:
 
     def test_not_installed_error_is_an_import_error(self) -> None:
         assert issubclass(OpenThaiSystemOneNotInstalledError, ImportError)
+
+    def test_empty_options_choice_question_raises_clear_error_not_opaque_upstream_one(self) -> None:
+        """Real bug found by this project's own end-to-end verification 2026-09-21: a
+        kind='choice' DecisionQuestion with no options/option_descriptions used to reach
+        OpenThai's `Choice` pydantic model and fail with an opaque upstream ValidationError --
+        AFTER paying for a full model load, since validation ran after `_get_client()`.
+        `_validate_questions_before_any_heavy_work` now runs FIRST (pure Python, no
+        `openthai_systemone` import, no model/client involved), so this is testable regardless
+        of whether the package is installed and without loading anything heavy."""
+        backend = OpenThaiSystemOneLocalBackend()
+        with pytest.raises(ValueError, match="has kind='choice' but no options"):
+            backend.decide(state={}, questions=_questions())
+
+
+@pytest.mark.real_weights
+@pytest.mark.skipif(not _openthai_installed(), reason="openthai_systemone not installed -- see TestOpenThaiSystemOneLocalBackend for the honest not-installed path instead")
+class TestOpenThaiSystemOneLocalBackendRealWeights:
+    """Runs ONLY when `openthai_systemone` is actually installed -- a real end-to-end call
+    against real downloaded model weights (not a mock, not a source-doc check). First run
+    downloads ~1.6GB of BF16 weights from the Hugging Face Hub and takes ~60-90s to load the
+    model; `decide()` itself is sub-second once loaded. Proves the full real chain: pgcross
+    DecisionQuestion -> openthai_systemone's Noul -> a real forward pass -> DecisionProposal.
+
+    Marked `real_weights` and excluded from the default `pytest` run (see pyproject.toml) --
+    found by a real failure 2026-09-21 that this machine's 4GB GPU cannot hold this model
+    alongside the RAG suite's sentence-transformers model in the same process. Run explicitly
+    with `pytest -m real_weights` when you have GPU/CPU headroom."""
+
+    def test_decide_returns_a_real_proposal_from_real_weights(self) -> None:
+        backend = OpenThaiSystemOneLocalBackend()
+        proposal = backend.decide(
+            state={"query": "10*10", "candidate_content": "100"},
+            questions=_noul_questions(),
+        )
+        assert isinstance(proposal, DecisionProposal)
+        assert proposal.backend_id == "openthai-systemone-local"
+        assert len(proposal.answers) == 1
+        answer = proposal.answers[0]
+        assert answer.question_id == "admissible"
+        assert isinstance(answer.resolution, S4)
+        assert 0.0 <= answer.probability <= 1.0

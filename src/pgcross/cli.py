@@ -113,6 +113,13 @@ def serve(
     decision_backend_model: str = typer.Option(
         "iapp/OpenThai-SystemOne", "--decision-backend-model",
         help="Model id for --decision-backend openthai-local."),
+    safety_kind: str = typer.Option(
+        "keyword", "--safety",
+        help="Safety layer: 'keyword' (default -- see safety.py's PROVE-IT caveat: catches "
+             "obvious cases only) or 'classifier' (adds unitary/toxic-bert, Apache-2.0, a real "
+             "trained model, layered on top of the keyword stub via `pip install "
+             "pgcross[safety]`; weights auto-download on first use). Neither is proven safe for "
+             "production without red-teaming."),
 ):
     """Start the pgcross server. Calls assert_serving_ready (F1 fail-closed)."""
     import uvicorn
@@ -174,6 +181,24 @@ def serve(
         typer.echo(f"[pgcross] unknown --decision-backend {decision_backend!r} (expected none|openthai-local|openthai-http)", err=True)
         raise typer.Exit(1)
 
+    safety_layer = None
+    if not unsafe_dev:
+        if safety_kind == "classifier":
+            from .safety import ClassifierSafety, ToxicBertNotInstalledError
+            classifier = ClassifierSafety()
+            try:
+                classifier._get_pipe()  # fail loud now, not on the first request
+            except ToxicBertNotInstalledError as e:
+                typer.echo(f"[pgcross] {e}", err=True)
+                raise typer.Exit(1)
+            safety_layer = classifier
+            typer.echo("[pgcross] safety: keyword + classifier (unitary/toxic-bert)")
+        elif safety_kind == "keyword":
+            safety_layer = make_safety()
+        else:
+            typer.echo(f"[pgcross] unknown --safety {safety_kind!r} (expected keyword|classifier)", err=True)
+            raise typer.Exit(1)
+
     pipeline_cfg = PipelineCfg(
         backend=backend,
         lens_sources=cfg.get("lens_sources", []),
@@ -186,7 +211,7 @@ def serve(
         registry=registry,
         cfg=pipeline_cfg,
         stakes_policy=classify_stakes,
-        safety=make_safety() if not unsafe_dev else None,
+        safety=safety_layer,
     )
     assert_serving_ready(ctx, allow_unsafe_dev=unsafe_dev)
     fastapi_app = create_app(ctx, allow_unsafe_dev=unsafe_dev)
