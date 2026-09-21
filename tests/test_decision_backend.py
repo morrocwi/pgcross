@@ -201,9 +201,16 @@ class TestOpenThaiSystemOneLocalBackend:
 
     @pytest.mark.skipif(_openthai_installed(), reason="openthai_systemone IS installed here -- see TestOpenThaiSystemOneLocalBackendRealWeights")
     def test_decide_raises_documented_error_when_package_not_installed(self) -> None:
+        """Real bug caught 2026-09-21 by a genuinely fresh CI-simulation venv (not this dev
+        environment, where openthai_systemone happens to be installed and so this test was
+        always skipped, hiding the bug): `_questions()` contains a malformed 'choice' question
+        (q1, empty options), so `_validate_questions_before_any_heavy_work` -- moved to run
+        BEFORE `_get_client()` for a separate, legitimate efficiency reason -- raised its own
+        ValueError before ever reaching the not-installed check this test means to exercise. Use
+        a well-formed question here so this test isolates the not-installed path specifically."""
         backend = OpenThaiSystemOneLocalBackend()
         with pytest.raises(OpenThaiSystemOneNotInstalledError) as exc_info:
-            backend.decide(state={}, questions=_questions())
+            backend.decide(state={}, questions=_noul_questions())
         message = str(exc_info.value)
         assert "openthai_systemone" in message
         assert "pip install openthai-systemone" in message

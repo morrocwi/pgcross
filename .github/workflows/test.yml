@@ -1,0 +1,42 @@
+name: PGCross Tests
+
+# Real, working CI for THIS public repo's actual structure -- added 2026-09-21 after an external
+# review correctly flagged that the public repo had no CI workflow at all, so README claims like
+# "conformance 46-test suite green" had no commit-level, GitHub-verified evidence behind them; a
+# reader had to trust the text. This closes that gap.
+#
+# Deliberately installs only the [dev] extra: [openthai]/[safety]/[eval] each pull in
+# multi-hundred-MB packages (openthai-systemone, torch, transformers, datasets) and, for
+# [openthai]/[eval], require downloading real model weights / datasets from the Hugging Face
+# Hub -- not something a CI runner should do on every push. With only [dev] installed, the
+# backend/safety tests that need those packages correctly skip via their own honest
+# not-installed error paths (see decision/backend.py's OpenThaiSystemOneNotInstalledError,
+# safety.py's ToxicBertNotInstalledError) rather than failing -- this workflow verifies the
+# CORE pipeline and the honest-failure paths, not the optional heavy backends.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Run conformance suite (I1-I8 invariants)
+        run: pytest tests/conformance -q
+
+      - name: Run full unit test suite
+        run: pytest tests/ -q

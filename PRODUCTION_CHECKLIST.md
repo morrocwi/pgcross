@@ -32,11 +32,25 @@ not a "should work," not a partial implementation.
       and `OpenAIBackend` (OpenAI-compatible HTTP) both wired in `backends/registry.py` — confirm
       the `kind="openai"` wiring bug (registry rejecting a kind `backends/openai.py` already
       implements) is fixed, not merely documented as known.
-- [ ] `DecisionBackend` protocol (`src/pgcross/decision/backend.py`): `MockBackend` and
-      `DeterministicBackend` implemented and tested. **`SystemOneHTTPBackend` (OpenThai-SystemOne
-      integration) is NOT implemented** — it raises `NotImplementedError` by design. Do not check
-      this box, and do not describe `SystemOneHTTPBackend`/OpenThai-SystemOne integration as
-      working, until it actually is.
+- [x] `DecisionBackend` protocol (`src/pgcross/decision/backend.py`): `MockBackend`,
+      `DeterministicBackend`, `OpenThaiSystemOneLocalBackend`, and `SystemOneHTTPBackend` are all
+      implemented and tested (2026-09-21). What's checked into this repo and independently
+      re-runnable by anyone: `OpenThaiSystemOneLocalBackend` exercised end-to-end against real
+      downloaded weights and a 100-example external public-dataset check (`eval/
+      decision_forge_benchmark.py`, `eval/xnli_th_external_benchmark.py`); `SystemOneHTTPBackend`
+      round-tripped against `server/systemone.py` via FastAPI's in-process `TestClient`
+      (`tests/test_systemone_endpoint.py::test_full_circle_via_real_systemone_http_backend_client`)
+      — a full-circle proof of the wire contract, but NOT a real network socket (see that
+      backend's own module docstring, which says exactly this and does not overclaim it). A
+      separate real-socket round trip (a real `pgcross serve` process, a real port, no
+      TestClient) was also run once by hand during development; that manual step is not itself a
+      reproducible artifact in this repo, so it is not cited as checkable evidence here. **This
+      entry previously said `SystemOneHTTPBackend` "is NOT implemented" — that was stale; a
+      stranger cross-checking README/REPO_ROLE.md against this file would have found a real
+      contradiction. Caught by an external review; both the original claim and this fix's own
+      wording were independently verified against the actual code/tests before being written
+      (the first draft of this fix over-cited a real socket round trip as checked-in evidence —
+      an independent review caught that too, and it was corrected to the above).**
 - [ ] `ComputationBackend` protocol (IDM/`research_universal_solver` routing) — design-only as of
       this checklist; not yet implemented. Same rule: do not claim it works before it does.
 
