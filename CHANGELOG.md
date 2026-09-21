@@ -1,10 +1,12 @@
 # Changelog — pgcross (N14)
 
-All notable changes to the N14 `pgcross` bundle. Tier-honest: a number is `[result]` only when a
-committed run backs it, else `[directional]`/`[design]`. Versioning follows the release gate, not
-SemVer-on-merge: the version stays `0.0.0.dev0` and `RELEASE_MANIFEST.yaml gate_passed` stays `false`
-until **GATE_A5** is authorised internally. No automated step bumps the version, cuts a tag, or sets
-`gate_passed:true`.
+All notable changes to `pgcross`. Tier-honest: a number is `[result]` only when a committed run
+backs it, else `[directional]`/`[design]`. Versioning follows the release gate, not SemVer-on-merge:
+the package version stays pinned at its last human-authorized release (currently `0.2.0`, below) —
+no automated step bumps it, cuts a tag, or sets `RELEASE_MANIFEST.yaml`'s `gate_passed: true`.
+Everything under `## [Unreleased]` has shipped in code but has not yet passed that authorization,
+so it is tracked here honestly without a version bump — not "version 0.0.0.dev0" as a literal
+installed-package version (which `pyproject.toml` does not carry), but the state of not-yet-gated.
 
 ## [0.2.0] — 2026-06-30 — SIR + HIT cards + SNAP network verification
 
@@ -35,7 +37,7 @@ until **GATE_A5** is authorised internally. No automated step bumps the version,
 - `stakes.py`: frozenset synced with stakes.yaml keywords (hospital, ICU, patient, insurance)
 - `cli.py`: serve() reads `server.port` / `server.host` from config (not hardcoded 8000)
 
-## [Unreleased] — 0.0.0.dev0
+## [Unreleased]
 
 ### Added (relevance gate — makes e5-small a clean win)
 - **`humane_gate._lexically_relevant`**: only GROUND on the top retrieved chunk when it shares content
@@ -206,7 +208,7 @@ until **GATE_A5** is authorised internally. No automated step bumps the version,
 
 ### Added (Decision Forge — PGCross Next, Verify/Authorize split, per internal architecture design records)
 - **`decision/` package** (net-new): `decision/schema.py` — the reconciled Verify/Authorize-stage
-  contract (Stream 3's design, resolved per the project's internal engineering decision log): `Readout`,
+  contract (this module's design, resolved per the project's internal engineering decision log): `Readout`,
   `Candidate` (the decision-layer analog of `core.models.EvidenceCandidate`, related by the one
   explicit adapter `evidence_candidate_to_decision_candidate()`), `DecisionQuestion`,
   `DecisionAnswer`, `DecisionProposal`, `VerificationResult`, `AuthorizationResult`, and
