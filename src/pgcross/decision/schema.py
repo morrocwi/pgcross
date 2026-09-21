@@ -4,7 +4,7 @@ The design confirmed by the project maintainers as the base for `decision/schema
 `authorization/policy.py` (Phase 0 item 1 of the project's internal task-tracking notes,
 RESOLVED 2026-09-21). This is Phase 2 item 16 of the same tracking notes.
 
-Grounds (registry-verified primitives, cited by exact code, per this project's own lookup-before-derive discipline and the
+Grounds (Toledo-verified primitives, cited by exact code, per this project's own lookup-before-derive discipline and the
 project's architecture design notes §1/§2.4):
 
 - `D/M.65.v1` (`neutral_distinct_from_bottom`, **Th_coqc**): `Sz <> Sbot` — "determinate zero"

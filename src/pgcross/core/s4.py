@@ -1,7 +1,7 @@
 """S4 — the four-value algebra: `+ / - / 0 / ⊥`, with `0 ≠ ⊥` formally enforced.
 
-the equation registry's `D/M.65.v1` (`neutral_distinct_from_bottom`, **Th_coqc**), statement as registered in
-this project's own equation-grounding registry (read verbatim, also quoted in the project's architecture
+Toledo's `D/M.65.v1` (`neutral_distinct_from_bottom`, **Th_coqc**), statement as registered in
+Toledo's canonical equation registry (read verbatim, also quoted in the project's architecture
 design notes §1/§2.4):
 
     Sz <> Sbot

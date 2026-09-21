@@ -4,7 +4,7 @@ this module's design (project's internal task-tracking notes, item 17, Phase 2).
 with the live pipeline yet.** Nothing here is wired into `pipeline/*.py`, `server/*.py`, or any
 `DecisionBackend` call; that wiring is later Phase 2/3 work.
 
-registry-verified primitives this module is grounded in (looked up, not assumed — per
+Toledo-verified primitives this module is grounded in (looked up, not assumed — per
 this workspace's own lookup-before-derive discipline; statements as registered, also quoted in the
 project's architecture design notes §1/§2.3/§2.4/§2.5, which was read in full before writing
 this file):
@@ -58,7 +58,7 @@ __all__ = [
 def has_finite_witness(gate: Any, candidate: Any) -> bool:
     """Dispatcher recognizing the `A3` witness-check pattern already present in this repo.
 
-    `A3` (untagged root, the equation registry): `P(X) <=> exists w finite: check(X,w)=top`. Returns `True` when
+    `A3` (untagged root, Toledo): `P(X) <=> exists w finite: check(X,w)=top`. Returns `True` when
     a deterministic check/witness already resolves the question for `candidate` — meaning no
     `DecisionBackend` call should happen for it. This is a **documented adapter** over the two
     witness-check instances the project's architecture design notes §2.3/§4 item 4 names as
@@ -138,7 +138,7 @@ def resolution_gate(
     """Cheap-check → refine → HOLD-if-still-⊥-after-budget (the project's architecture design
     notes §2.5).
 
-    the equation registry's `D/M.77.v1` (`bot_monotone_in_floor`, **Th_coqc**), statement as registered:
+    Toledo's `D/M.77.v1` (`bot_monotone_in_floor`, **Th_coqc**), statement as registered:
 
         0<=f1 -> f1<=f2 -> classify f1 v = Sbot -> classify f2 v = Sbot
 

@@ -3,7 +3,7 @@
 `backends/base.py`'s `LLMBackend` protocol is transport-only (I7 structure-extraction: it may
 never assert a fact or a number, see `LLMBackend.transport`'s docstring). `DecisionBackend` is a
 different contract: it is only ever reached after the witness-before-model / resolution-gate
-sequence in the project's architecture design notes (the equation registry's `A3`, `witness_sound`/
+sequence in the project's architecture design notes (Toledo's `A3`, `witness_sound`/
 `witness_complete`/`decide_reflect`, all `Th_coqc`) has already found no finite witness and no
 resolved readout — at that point a `DecisionBackend` may PROPOSE a typed answer with a
 probability, never authorize one. Per the project's internal architecture audit notes (Backends
@@ -50,7 +50,7 @@ except ImportError:
     class S4(str, Enum):
         """Determinate-positive/negative/zero, plus the distinct unresolved state.
 
-        Per the equation registry's `D/M.65.v1` (`neutral_distinct_from_bottom`, Th_coqc): `Sz <> Sbot` —
+        Per Toledo's `D/M.65.v1` (`neutral_distinct_from_bottom`, Th_coqc): `Sz <> Sbot` —
         "determinate zero" and "unresolved" are formally distinct constructors and must never be
         collapsed into each other (never coerce `BOT` into `None`/falsy/zero at a serialization
         boundary). See the project's architecture design notes §2.4.

@@ -301,7 +301,7 @@ or ADMIT/HOLD").
 - `the project's internal architecture audit notes` — the Phase A audit that first named F1–F15 as required
   invariants and confirmed none of them existed or were tested before this work.
 - `the project's architecture design notes` §2.3/§2.4/§2.5/§3 — the `A3` witness/`S4`/resolution-gate
-  formal grounding (registry-verified primitives) that `needs_decision_backend()` and
+  formal grounding (Toledo-verified primitives) that `needs_decision_backend()` and
   `decision/schema.py`'s `S4`-typed fields implement.
 - `the project's internal engineering decision log` Phase 0 item 5 — the engineering decision log entry this document's §2 quotes
   verbatim.
