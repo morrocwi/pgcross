@@ -152,6 +152,36 @@ This comparison is committed as `eval/pipeline_vs_direct_comparison.py` (not jus
 prose) so anyone can reproduce it: `python eval/pipeline_vs_direct_comparison.py` — re-run once
 more directly from this file before publishing, reproduced 20/20 exactly.
 
+**A third real bug, this time found by an adversarial `ultracode` red-team commissioned against
+this README's own capability claims** (not by the founder testing directly) — full run:
+static code-audit of two claims (no GPU) in parallel, then live-model testing of the other two
+strictly sequentially (single 4GB GPU, never in parallel). Result: 3 of 4 claims held under
+real adversarial testing; the "deterministic queries never reach the model" claim did NOT, as
+literally stated. Counterexample found in the claim's own example domain: `"R0 equals three,
+what is the herd immunity threshold?"` genuinely reached the model, because `pipeline/ground.py`'s
+number-extraction regex only ever recognized digit numerals ("3"), never spelled-out equivalents
+("three") — a grounding-layer gap, not a flaw in the witness-gate logic. Fixed the same day:
+`ground.py` gained a literal, deterministic word-number-to-digit substitution pass (English
+ones/teens/tens/compounds, "X tenths/hundredths" fractions, "half"; **Thai digits, irregular
+teens `เอ็ด`, irregular twenty `ยี่สิบ`, tens, `จุด` decimal-point reading** — Thai support
+requested explicitly, not just English) run before all existing digit-based patterns, so nothing
+else needed to change. Also fixed an adjacent gap found while testing: `R0`'s own patterns only
+accepted a symbolic `=`/`:` connector, never a word connector like "equals". Re-verified live:
+`"R0 equals three..."` and `"beta is three tenths and gamma is one tenth and lambda_max is
+three..."` (plus Thai equivalents) now resolve with **0 model calls**, restoring the bypass.
+New `tests/test_ground_number_words.py` (9 tests) locks this in.
+
+The other three claims — safety override wins regardless of model (verified with 5 real DANGER
+fixtures, 0 model calls, plus a live control), structural REJECT/ESCALATE impossibility
+(survived live adversarial extreme inputs), and pipeline/direct agreement (reproduced across 3
+independent seeds, 55 total examples, 100% every time) — held. The red-team also surfaced two
+real, non-blocking gaps worth naming rather than hiding: the harm-net's regex coverage has
+documented blind spots (leetspeak, letter-spacing, non-EN/TH languages — already acknowledged in
+that module's own comments), and `authorize_decision_proposal()` isn't wrapped in the same
+try/except as the `decide()` call before it, so a non-conforming third-party `DecisionBackend`
+could crash a request (HTTP 500) rather than degrade to HOLD — not a safety bypass, a
+crash-hardening gap, logged as known follow-up work.
+
 Answer probabilities here now come from two sources, in priority order (see
 `server/systemone.py`'s module docstring for the exact rule): (1) a **real, measured** model
 probability when a `decision_backend` answered the caller's actual question directly; (2) a
