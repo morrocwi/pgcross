@@ -162,16 +162,33 @@ pgcross check --conformance    # verify I1-I8 against your loaded config
   **Not comparable** to OpenThai-SystemOne's own published XNLI-th number (76.5%) — different
   system (the whole Forge, not the bare model), different sample size, different harness; see
   the script's own docstring before citing this number anywhere else.
-- **Same public benchmark suite, 3 of 13 subsets** — `eval/jev_public_benchmark_suite.py`.
+- **Same public benchmark suite, all 13 subsets** — `eval/jev_public_benchmark_suite.py`.
   OpenThai-SystemOne's own model card cites a 13-dataset public benchmark (Bespoke Nimble's own
   `docs/PUBLIC_BENCHMARKS.md` methodology): `aegis2`, `boolq`, `civil_comments`, `helpsteer2`,
   `massive-de-DE`, `massive-en-US`, `multinli`, `paws`, `pubmedqa`, `squad2`,
-  `summeval-consistency`, `summeval-relevance`, `vitaminc-dev`. This covers 3 of those 13 (the
-  ones directly loadable via `datasets` with unambiguous ground truth), 60 real examples each,
-  fixed seed: **boolq 43/60 (71.7%), paws 37/60 (61.7%), multinli 55/60 (91.7%)** — combined
-  135/180 (75.0%). **Not a reproduction of their published 61.9/74.8/76.0 aggregate numbers** —
-  same dataset names, not a byte-identical harness, and only 3 of the 13 subsets; see the
-  script's own docstring for exactly what is and isn't covered.
+  `summeval-consistency`, `summeval-relevance`, `vitaminc-dev`. Run piece by piece (real weights,
+  fixed seed, `nvidia-smi`/`free -h` checked between each — never in parallel on this machine's
+  single 4GB GPU):
+
+  | dataset | score | dataset | score |
+  |---|---|---|---|
+  | boolq | 43/60 (71.7%) | massive-en-US | 19/30 (63.3%) |
+  | paws | 37/60 (61.7%) | massive-de-DE | 11/30 (36.7%) |
+  | multinli | 55/60 (91.7%) | pubmedqa | 18/30 (60.0%) |
+  | aegis2 | 12/30 (40.0%) | squad2 | 28/30 (93.3%) |
+  | civil_comments | 2/30 (6.7%) | summeval-consistency | 9/30 (30.0%) |
+  | helpsteer2 | 12/30 (40.0%) | summeval-relevance | 4/30 (13.3%) |
+  | vitaminc-dev | 17/30 (56.7%) | **combined** | **267/480 (55.6%)** |
+
+  `civil_comments`/`summeval-relevance` are reported with the same prominence as the high
+  scores, not buried — both use strict exact-match against a collapsed ordinal bucket, a metric
+  this file's own docstring names as harsher than an off-by-one-tolerant alternative it did not
+  implement (named follow-up, not a hidden gap). **Not a reproduction of their published
+  61.9/74.8/76.0 aggregate numbers** — same dataset names, not a byte-identical harness, several
+  subsets use a real, narrowed sub-task (documented in the script's own docstring), and different
+  sample sizes per dataset (60 for the first 3, 30 for the other 10, to keep total run time
+  bounded — do not average across rows as if every dataset carried equal weight without
+  accounting for that).
 
 ## Engine cards
 
