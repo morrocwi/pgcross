@@ -158,7 +158,7 @@ def test_empty_registry_benign_query_holds_and_never_fabricates():
     providers, verify() produces zero candidates, and assemble()'s I4 fallback appends a
     CLARIFY/CONSULTATION candidate (pipeline/lens.py::clarify_or_consultation) rather than
     inventing a COMPUTED/RETRIEVED answer. The witness-before-model gate then holds the whole
-    response at AuthorizationStatus.HOLD (Stream 3 step 6b default, no DecisionBackend wired).
+    response at AuthorizationStatus.HOLD (the documented default when no DecisionBackend is wired).
     No backend feature (general_chat_fallback / imagine_bridge) is enabled here — this test is
     about the bare "nothing resolved it" case, not about a fallback layer that could itself
     inject an unguarded guess (that is tests/test_f1_gate_bypass_integration.py's job)."""
