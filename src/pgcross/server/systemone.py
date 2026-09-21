@@ -194,7 +194,7 @@ async def systemone(req: SystemOneRequest, request: Request) -> dict:
         query = _query_text(req.state, instructions)
         decision_question = _to_decision_question(qid, question)
         try:
-            resp = run_pipeline(query, ctx, decision_question=decision_question)
+            resp = run_pipeline(query, ctx, decision_question=decision_question, decision_state=req.state)
         except HarmfulRequest:
             # Refused before Verify/Authorize ever ran — report as "no"/lowest-confidence rather
             # than fabricating a resolved answer for a query the pipeline never actually assessed.

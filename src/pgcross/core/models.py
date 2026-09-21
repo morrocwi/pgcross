@@ -35,6 +35,15 @@ class QueryIR(BaseModel):
         # THIS question directly instead -- see its own docstring for why that distinction is
         # real, not cosmetic (found live 2026-09-21: the synthetic question is nonsensical when
         # no other pipeline stage produced a real candidate to judge the admissibility of).
+    decision_state: dict | None = None  # the caller's real `state` dict for `decision_question`
+        # (e.g. server/systemone.py's `req.state`), forwarded verbatim to `DecisionBackend.decide()`
+        # when `decision_question` is answered directly. Real bug found and fixed live 2026-09-21,
+        # same incident as `decision_question` above: `state` is part of a real model call's input
+        # (not inert metadata), and before this field existed, `pipeline/authorize.py` always built
+        # its OWN synthetic state dict (query text + the fallback candidate's often-irrelevant
+        # content/tier) even for a caller-supplied question -- confirmed live to measurably change
+        # answers on borderline examples (85% agreement, not 100%, between a direct decide() call
+        # and the same question through run_pipeline(), on a 20-example real-model comparison).
     model_config = {"arbitrary_types_allowed": True}
     def slots_partially_known(self) -> bool: return len(self.slots) > 0
 

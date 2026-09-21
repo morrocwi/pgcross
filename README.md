@@ -138,6 +138,20 @@ pre-existing test) is byte-for-byte unaffected — the fix is additive and opt-i
 field. Verified live against the real model after the fix: the Paris case now returns `~0.97`,
 a paired false case ("...in London?") returns `~0.01`.
 
+**A second real bug, found the same day by asking for empirical proof of the first fix**: a
+live 20-example comparison (`decide()` called directly vs. the same question through
+`run_pipeline()`) showed only 85% agreement (17/20), not 100%, despite being the same question
+to the same model. Cause: `state` is part of the model's real input (not inert metadata), and
+`pipeline/authorize.py` was still building its OWN synthetic `state` dict (the fallback
+candidate's largely-irrelevant content/tier) even when answering a caller-supplied question,
+instead of forwarding the caller's real state. Fixed the same way: `QueryIR`/`run_pipeline()`
+gained `decision_state`, threaded through to `decision_backend.decide()` verbatim when answering
+a real question. Re-ran the identical 20-example comparison after the fix: **20/20 (100%)
+agreement** — closing the loop with a real before/after measurement, not just a code read.
+This comparison is committed as `eval/pipeline_vs_direct_comparison.py` (not just asserted in
+prose) so anyone can reproduce it: `python eval/pipeline_vs_direct_comparison.py` — re-run once
+more directly from this file before publishing, reproduced 20/20 exactly.
+
 Answer probabilities here now come from two sources, in priority order (see
 `server/systemone.py`'s module docstring for the exact rule): (1) a **real, measured** model
 probability when a `decision_backend` answered the caller's actual question directly; (2) a

@@ -164,12 +164,20 @@ def _authorize_status(
                     ),
                     kind="noul",
                 )
+            if caller_question is not None:
+                # Real bug found and fixed live 2026-09-21: `state` is part of a real model
+                # call's input (not inert metadata) -- always building the synthetic
+                # query/candidate_content/candidate_tier dict here even for a caller-supplied
+                # question measurably changed answers on borderline examples (confirmed: 85%
+                # agreement, not 100%, between a direct decide() call and the same question
+                # through this gate, on a real-model comparison). Use the caller's own state
+                # (e.g. server/systemone.py's `req.state`) instead, exactly as they intended.
+                decide_state = getattr(q, "decision_state", None) or {}
+            else:
+                decide_state = {"query": q.text, "candidate_content": primary.content,
+                                 "candidate_tier": str(primary.tier) if primary.tier else None}
             try:
-                proposal = decision_backend.decide(
-                    state={"query": q.text, "candidate_content": primary.content,
-                           "candidate_tier": str(primary.tier) if primary.tier else None},
-                    questions=[question],
-                )
+                proposal = decision_backend.decide(state=decide_state, questions=[question])
             except Exception as exc:  # noqa: BLE001 -- FAILURE POLICY: any backend failure -> HOLD
                 return (
                     AuthorizationStatus.HOLD,
