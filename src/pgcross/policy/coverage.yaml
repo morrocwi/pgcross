@@ -1,0 +1,38 @@
+coverage:
+  declared_in_scope:
+    - card: epidemiology
+      description: "SIS R0 threshold; beta/gamma/N parameters; Coq-backed structure"
+      tier_ceiling: Dr
+      independent_checker: false
+      note: "verifier inactive (oracle==engine); capped Dr"
+    - card: finance_option
+      description: "Black-Scholes European call option pricing"
+      tier_ceiling: Dr
+      independent_checker: false
+      note: "verifier inactive (both BS closed-form); capped Dr"
+    - card: chemistry_dft
+      description: "DFT energy computation via PySCF; oracle=RDKit (independent)"
+      tier_ceiling: finite_diagnostic
+      independent_checker: true
+    - card: tau_c_lookup
+      description: "τ_c constants from atlas; boundary lookup"
+      tier_ceiling: Dr
+      independent_checker: false
+    - card: ecology
+      description: "Lotka-Volterra ecology dynamics"
+      tier_ceiling: Dr
+      independent_checker: false
+    - card: social_diffusion
+      description: "SIS diffusion on social networks"
+      tier_ceiling: Dr
+      independent_checker: false
+      note: "routing weak: 0.545 (attractor risk — epidemiology absorbs mis-routes)"
+  declared_out_of_scope:
+    - "open-ended factual Q&A not covered by engine cards → abstain / lens only"
+    - "advice that substitutes for a qualified expert → CONSULTATION candidate"
+    - "any query whose required params are absent or ungrounded → CLARIFY / abstain"
+  routing_accuracy:
+    real_query: 0.785
+    calibration_loocv: 0.911
+    note: "LOOCV is optimistic by 12.6pp; real-query number is the honest figure"
+    weak_cards: ["social_diffusion=0.545", "chemistry=0.600"]

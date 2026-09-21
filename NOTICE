@@ -1,0 +1,74 @@
+Third-Party Component Attributions
+pgcross
+
+This software incorporates third-party open-source components. Their licenses are listed below.
+These components retain their own licenses, listed below; they are separate from PGCross's own
+Apache-2.0 license (see LICENSE). This file is a brief summary; see THIRD_PARTY_NOTICES.md for the
+full compliance-note ledger (per-package SPDX identifier and obligation notes) — the two files
+must be kept in sync with pyproject.toml.
+
+---
+
+## Runtime dependencies
+
+Package: fastapi
+License: MIT
+Copyright: Copyright (c) Sebastián Ramírez and contributors
+
+Package: uvicorn
+License: BSD-3-Clause
+Copyright: Copyright (c) Encode OSS Ltd. and contributors
+
+Package: pydantic
+License: MIT
+Copyright: Copyright (c) Samuel Colvin and contributors
+
+Package: typer
+License: MIT
+Copyright: Copyright (c) Sebastián Ramírez and contributors
+
+Package: numpy
+License: BSD-3-Clause
+Copyright: Copyright (c) NumPy Developers
+
+Package: pyyaml
+License: MIT
+Copyright: Copyright (c) Kirill Simonov and contributors
+
+Package: httpx
+License: BSD-3-Clause
+Copyright: Copyright (c) Encode OSS Ltd. and contributors
+
+## Optional dependencies
+
+Package: sentence-transformers ([rag] extra)
+License: Apache-2.0
+Copyright: Copyright (c) UKPLab and contributors
+
+Package: pypdf ([rag] extra)
+License: BSD-3-Clause
+Copyright: Copyright (c) Mathieu Fenniak and contributors
+
+Package: llama-cpp-python ([llamacpp] extra)
+License: MIT
+Copyright: Copyright (c) Andrei Betlen and contributors (Python bindings); llama.cpp: Georgi
+Gerganov and contributors (MIT)
+
+## Development dependencies (not shipped in production builds)
+
+Package: pytest ([dev] extra)
+License: MIT
+Copyright: Copyright (c) Holger Krekel and contributors
+
+Package: pip-licenses ([dev] extra)
+License: MIT
+Copyright: Copyright (c) raimon49 and contributors
+
+Package: standard library (Python)
+License: PSF-2.0
+Copyright: Copyright (c) Python Software Foundation
+
+---
+
+GPL and AGPL licensed packages are PROHIBITED in this product. See THIRD_PARTY_NOTICES.md's
+"Prohibited Dependencies" section and licenses/AUDIT.md for the current audit result.

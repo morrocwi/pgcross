@@ -1,0 +1,19 @@
+# RELEASE_MANIFEST — pgcross
+#
+# RECONCILED 2026-09-21 (Phase 7 item 39, license/dependency audit reconciliation).
+# This file previously described the abandoned "N14 product-layer, no installable
+# Python module" architecture (product name pgcross-product, python_module: null,
+# gate GATE_A5_PGCROSS_PRODUCT_RELEASE, current_version 0.1.0) — per an earlier
+# internal architecture audit, which flagged this doc as unread at the time and the
+# whole N14 direction as superseded by the current Decision Forge /
+# Authorization Runtime direction. That old direction pip-installed a separately
+# released model/RAG engine from another repo (see UPSTREAM_RELEASES.yaml history).
+# The CURRENT reality, verified against pyproject.toml on 2026-09-21: pgcross is a
+# single self-contained installable Python package (no external upstream product
+# release gate blocks it), with all runtime deps pulled directly from PyPI.
+package: pgcross
+python_module: "pgcross"          # installable; see [project] name in pyproject.toml
+current_version: "0.2.0"          # matches pyproject.toml [project].version
+gate: null                        # no external upstream-product release gate in the current architecture
+superseded_gate: GATE_A5_PGCROSS_PRODUCT_RELEASE  # historical, N14 product-layer era; no longer applicable
+releases: []

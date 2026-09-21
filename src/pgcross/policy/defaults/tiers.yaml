@@ -1,0 +1,11 @@
+verifiability_ceiling:
+  COQ_CHECKED: Th_coqc
+  INDEPENDENT_ORACLE: finite_diagnostic
+  SOURCE_ATTRIBUTED: Dr
+  SELF_CONSISTENT: Dr
+  NONE: Open
+authority_ceiling_by_label:
+  peer_reviewed: Dr
+  curated: Wf
+  web: Open
+high_stakes_tier_bar: finite_diagnostic

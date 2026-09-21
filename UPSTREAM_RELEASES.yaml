@@ -1,0 +1,38 @@
+# UPSTREAM_RELEASES.yaml — pgcross
+#
+# RECONCILED 2026-09-21 (Phase 7 item 39, license/dependency audit reconciliation).
+# Rule: only release tags here, never branches.
+#
+# This file previously pinned pgcross to two external internal-organization repos installed via
+# `pip install git+https://...@<tag>` (product-universal-rag v0.14.0, and a pending
+# research_pgcross.universalModel release), under the old N14 "waterfall" product
+# architecture. Checked against the REAL current pyproject.toml on 2026-09-21: neither
+# package appears anywhere in [project.dependencies] or [project.optional-dependencies]
+# — pgcross's actual runtime/optional deps (fastapi, uvicorn, pydantic, typer, numpy,
+# pyyaml, httpx; extras: llama-cpp-python, vllm, sentence-transformers, pypdf; dev:
+# pytest, pip-licenses) are all published PyPI packages, none of them git-pinned
+# internal-organization upstream products. This file was stale relative to the current architecture
+# — per an earlier internal architecture audit, which already flagged the N14
+# direction as abandoned/superseded and this file as unread at the time.
+#
+# Current status: no upstream git-tag-pinned product dependencies exist in pgcross today.
+upstream: []
+
+# --- Historical entries (superseded, kept for lineage, not currently in effect) ---
+# The two rows below described the abandoned N14 product-layer architecture and no
+# longer correspond to anything in pyproject.toml. Retained here rather than deleted
+# so the DEC-n12-byo-worldclass-2026-0630 decision trail is not silently erased.
+superseded_upstream:
+  - package: product-universal-rag
+    repo: morrocwi/product_universal_rag
+    tag: v0.14.0
+    install: "product-universal-rag @ git+https://github.com/morrocwi/product_universal_rag@v0.14.0"
+    artifact: universal_rag_runtime_release
+    gate: GATE_A3_UNIVERSAL_RAG_ENGINE_RELEASE
+    locked: "2026-06-30"
+    note: "N14 product-layer era. Bumped v0.12.0 -> v0.14.0 (BYO answer-with-status + plug-in-any-model engine). See DEC-n12-byo-worldclass-2026-0630. Superseded: not a dependency of the current pgcross package (2026-09-21 audit)."
+  - artifact: pgcross_model_release_candidate
+    repo: morrocwi/research_pgcross.universalModel
+    tag: "(not yet released)"
+    status: superseded
+    note: "N14 era: N14 was to pip-install an N13-released model RC to reach GATE_A5. Superseded: current pgcross architecture has no such external model-release dependency (2026-09-21 audit)."

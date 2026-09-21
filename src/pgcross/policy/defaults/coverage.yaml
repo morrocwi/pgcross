@@ -1,0 +1,12 @@
+in_scope:
+  - card: sis_threshold
+    description: SIS R0 epidemic threshold (COQ_CHECKED, Dr)
+    slots: [beta, gamma, lambda_max]
+  - kind: rag_corpus
+    description: Passage-backed claims from registered corpora (Dr max)
+  - kind: atlas_tau_c
+    description: tau_c boundary lookup constants (SOURCE_ATTRIBUTED, Dr)
+out_of_scope:
+  - open-ended factual Q&A not covered by engine cards
+  - advice substituting for qualified expert
+  - multi-turn conversation grounding
