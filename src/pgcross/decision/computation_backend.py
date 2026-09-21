@@ -8,7 +8,7 @@ routes to an existing, separately-owned, separately-verified calculator
 included here for cross-domain structural/spine dynamics) and returns an
 already-certified-or-estimated result — no probabilistic model call involved at all.
 
-Grounding (Toledo-verified primitives cited by code, per `EPIS-TOLEDO-FIRST`):
+Grounding (registry-verified primitives cited by code, per this project's own lookup-before-derive discipline):
 - `A3` (`P(X) <=> exists w finite: check(X,w)=True`) is the witness-before-model
   discipline this protocol continues: §6a's end-to-end order places
   `ComputationBackend` routing *after* the deterministic engine card and the `A3`

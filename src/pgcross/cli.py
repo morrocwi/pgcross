@@ -98,6 +98,21 @@ def serve(
                     "overrides a real refusal or a real structured answer. ON by default for "
                     "`serve` (an HTTP endpoint meant for general clients like Codex CLI); pass "
                     "--no-general-chat to keep pgcross strictly structured-domain-only."),
+    decision_backend: str = typer.Option(
+        "none", "--decision-backend",
+        help="Optional DecisionBackend for the witness-before-model gate (reached only after "
+             "the deterministic harm-net check and the A3 witness/resolution gate both find "
+             "nothing): 'none' (default — HOLD in that case, no model reached), "
+             "'openthai-local' (in-process iapp/OpenThai-SystemOne via `pip install "
+             "pgcross[openthai]`; downloads model weights from Hugging Face Hub on first use, "
+             "standard huggingface_hub caching — no separate manual download step), or "
+             "'openthai-http' (POST to an already-running OpenThai-SystemOne-compatible server, "
+             "see --decision-backend-url)."),
+    decision_backend_url: str = typer.Option(
+        None, "--decision-backend-url", help="Base URL for --decision-backend openthai-http."),
+    decision_backend_model: str = typer.Option(
+        "iapp/OpenThai-SystemOne", "--decision-backend-model",
+        help="Model id for --decision-backend openthai-local."),
 ):
     """Start the pgcross server. Calls assert_serving_ready (F1 fail-closed)."""
     import uvicorn
@@ -138,11 +153,33 @@ def serve(
         typer.echo(f"[pgcross] backend load failed: {e} — running without backend", err=True)
         backend = None
 
+    decision_backend_instance = None
+    if decision_backend == "openthai-local":
+        from .decision.backend import OpenThaiSystemOneLocalBackend, OpenThaiSystemOneNotInstalledError
+        decision_backend_instance = OpenThaiSystemOneLocalBackend(model=decision_backend_model)
+        try:
+            decision_backend_instance._get_client()  # fail loud now, not on the first request
+        except OpenThaiSystemOneNotInstalledError as e:
+            typer.echo(f"[pgcross] {e}", err=True)
+            raise typer.Exit(1)
+        typer.echo(f"[pgcross] decision backend: openthai-local ({decision_backend_model})")
+    elif decision_backend == "openthai-http":
+        if not decision_backend_url:
+            typer.echo("[pgcross] --decision-backend openthai-http requires --decision-backend-url", err=True)
+            raise typer.Exit(1)
+        from .decision.backend import SystemOneHTTPBackend
+        decision_backend_instance = SystemOneHTTPBackend(base_url=decision_backend_url)
+        typer.echo(f"[pgcross] decision backend: openthai-http ({decision_backend_url})")
+    elif decision_backend != "none":
+        typer.echo(f"[pgcross] unknown --decision-backend {decision_backend!r} (expected none|openthai-local|openthai-http)", err=True)
+        raise typer.Exit(1)
+
     pipeline_cfg = PipelineCfg(
         backend=backend,
         lens_sources=cfg.get("lens_sources", []),
         high_stakes_tier_bar=Tier.finite_diagnostic,
         enable_general_chat_fallback=general_chat,
+        decision_backend=decision_backend_instance,
     )
     ctx = Ctx(
         backend=backend,

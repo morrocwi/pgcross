@@ -35,7 +35,7 @@ def _attach_crisis_resources(cand: Any, lang: str = "en", region: str = "TH") ->
 
 
 class AuthorizedResponse(Response):
-    """`Response` extended with the Authorize stage's `AuthorizationStatus` (Stream 3 step 6b,
+    """`Response` extended with the Authorize stage's `AuthorizationStatus` (this module's design,
     internal task-tracking notes, item 17-adjacent wiring). Subclasses rather than modifying
     `core.models.Response` directly, to avoid a circular import (`decision/schema.py` already
     imports `EvidenceCandidate`/`Provenance` FROM `core/models.py`; `core/models.py` importing
@@ -165,7 +165,7 @@ def authorize(cands: list, q, cfg) -> Response:
     of provider.produce()/provider.verify() or core.tiering.final_tier — that is verify()'s job
     (pipeline/verify.py).
 
-    Stream 3 step 6b (internal task-tracking notes, items 17/23, the project's architecture
+    this module's design (internal task-tracking notes, items 17/23, the project's architecture
     design notes §2.3/§3/§4): the ADMIT/HOLD/REJECT/ESCALATE layer below runs AFTER all of the
     I2/I5/I4/D2
     logic above — it does not reorder or replace any of it, it only adds an `AuthorizationStatus`
@@ -188,7 +188,7 @@ def authorize(cands: list, q, cfg) -> Response:
         for i, c in enumerate(cands):
             if c.ctype == CType.CONSULTATION: primary = i; break
 
-    # ---- NEW (Stream 3 step 6b): ADMIT/HOLD/REJECT/ESCALATE + witness-before-model gate -------
+    # ---- NEW (this module's design): ADMIT/HOLD/REJECT/ESCALATE + witness-before-model gate -------
     # cfg.decision_backend is optional (getattr default None) -- callers that don't configure one
     # get the exact same honest HOLD-on-⊥ behavior as before a real backend existed.
     status, reason, danger_source = _authorize_status(cands, q, getattr(cfg, "decision_backend", None))

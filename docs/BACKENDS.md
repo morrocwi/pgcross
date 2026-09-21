@@ -53,7 +53,7 @@ class DecisionBackend(Protocol):
 ```
 
 Per the module docstring, this protocol is **only ever reached after** the witness-before-model /
-resolution-gate sequence described in `the project's architecture design notes` (Toledo `A3`:
+resolution-gate sequence described in the project's architecture design notes (the equation registry's `A3`:
 `witness_sound`/`witness_complete`/`decide_reflect`, all `Th_coqc`) has already found no finite
 witness and no resolved readout. At that point a `DecisionBackend` may **propose** a typed answer
 with a probability — it may never authorize one. `DecisionProposal` (the return type) structurally
@@ -64,7 +64,7 @@ asserts exactly this). Every `DecisionProposal` must still pass PGCross's own Ve
 ADMIT/HOLD/REJECT/ESCALATE outcome.
 
 `DecisionAnswer.resolution` is typed as `S4` (`POS`/`NEG`/`ZERO`/`BOT`), not a bare boolean or
-`None` — per Toledo `D/M.65.v1` (`Sz <> Sbot`, `Th_coqc`), "determinate zero" and "unresolved" are
+`None` — per the equation registry `D/M.65.v1` (`Sz <> Sbot`, `Th_coqc`), "determinate zero" and "unresolved" are
 formally distinct and must never collapse into each other at a serialization boundary.
 
 **Failure policy (binding contract, stated in the module docstring):** if `decide()` fails, times

@@ -1,11 +1,11 @@
 """authorization/policy.py — Witness-before-Model rule + resolution gate.
 
-Stream 3 step 4 (project's internal task-tracking notes, item 17, Phase 2). **PURE FUNCTIONS ONLY — no interaction
+this module's design (project's internal task-tracking notes, item 17, Phase 2). **PURE FUNCTIONS ONLY — no interaction
 with the live pipeline yet.** Nothing here is wired into `pipeline/*.py`, `server/*.py`, or any
 `DecisionBackend` call; that wiring is later Phase 2/3 work.
 
-Toledo-verified primitives this module is grounded in (looked up, not assumed — per
-`EPIS-TOLEDO-FIRST`/`EPIS-REUSE-PIPELINE`; statements as registered, also quoted in the
+registry-verified primitives this module is grounded in (looked up, not assumed — per
+this workspace's own lookup-before-derive discipline; statements as registered, also quoted in the
 project's architecture design notes §1/§2.3/§2.4/§2.5, which was read in full before writing
 this file):
 
@@ -58,7 +58,7 @@ __all__ = [
 def has_finite_witness(gate: Any, candidate: Any) -> bool:
     """Dispatcher recognizing the `A3` witness-check pattern already present in this repo.
 
-    `A3` (untagged root, Toledo): `P(X) <=> exists w finite: check(X,w)=top`. Returns `True` when
+    `A3` (untagged root, the equation registry): `P(X) <=> exists w finite: check(X,w)=top`. Returns `True` when
     a deterministic check/witness already resolves the question for `candidate` — meaning no
     `DecisionBackend` call should happen for it. This is a **documented adapter** over the two
     witness-check instances the project's architecture design notes §2.3/§4 item 4 names as
@@ -87,7 +87,7 @@ def has_finite_witness(gate: Any, candidate: Any) -> bool:
 
     `gate` is accepted but not consulted by the two recognized shapes above — the parameter exists
     so a future caller-supplied gate object can carry extra witness-recognition context without
-    changing this function's signature; it is deliberately unused here (Stream 3 step 4 scope is
+    changing this function's signature; it is deliberately unused here (this module's design scope is
     pure functions only, no gate-specific dispatch yet).
     """
     del gate  # not consulted by the two currently-recognized witness shapes (see docstring)
@@ -138,7 +138,7 @@ def resolution_gate(
     """Cheap-check → refine → HOLD-if-still-⊥-after-budget (the project's architecture design
     notes §2.5).
 
-    Toledo `D/M.77.v1` (`bot_monotone_in_floor`, **Th_coqc**), statement as registered:
+    the equation registry's `D/M.77.v1` (`bot_monotone_in_floor`, **Th_coqc**), statement as registered:
 
         0<=f1 -> f1<=f2 -> classify f1 v = Sbot -> classify f2 v = Sbot
 
@@ -192,13 +192,13 @@ def needs_decision_backend(gate: Any, candidate: Any, s4_result: S4) -> bool:
     (still `⊥` after refinement) agree there is genuinely nothing else to try. `s4_result` is
     taken as a parameter rather than recomputed here — the caller is expected to have already run
     `resolution_gate` (this function does not call it, keeping the three functions independently
-    testable and composable, per Stream 3 step 4's "pure functions, no pipeline wiring" scope).
+    testable and composable, per this module's "pure functions, no pipeline wiring" scope).
     """
     return (not has_finite_witness(gate, candidate)) and s4_result == S4.BOT
 
 
 # ---------------------------------------------------------------------------
-# classify_and_authorize — Stream 3 step 5 (internal task-tracking notes, item 23): the
+# classify_and_authorize — this module's design (internal task-tracking notes, item 23): the
 # DANGER/ADVISORY/WEAKNESS taxonomy (harm_net.py) ported to the maintainer-
 # confirmed ADMIT/HOLD/REJECT/ESCALATE mapping.
 # ---------------------------------------------------------------------------
@@ -238,8 +238,8 @@ def classify_and_authorize(candidate_or_query: Any) -> AuthorizationStatus:
     shaped object (dataclass, pydantic `BaseModel`, or plain `dict`) carrying a `content: str`
     field — see `_extract_text()`. This function does not itself call a `DecisionBackend`; it is
     the harm/stakes-taxonomy leg of Authorize, orthogonal to `needs_decision_backend()`'s
-    witness/resolution-gate leg above (both live in this module per Stream 3's `authorization/
-    policy.py` ownership, project's internal task-tracking notes, Phase 0 item 1).
+    witness/resolution-gate leg above (both live in this module by design, per the project's
+    internal task-tracking notes, Phase 0 item 1).
     """
     text = _extract_text(candidate_or_query)
     category = classify_harm_taxonomy(text)
@@ -252,7 +252,7 @@ def classify_and_authorize(candidate_or_query: Any) -> AuthorizationStatus:
 
 
 # ---------------------------------------------------------------------------
-# forged_tier_guard — Stream 3 step 5 (internal task-tracking notes, item 23): the
+# forged_tier_guard — this module's design (internal task-tracking notes, item 23): the
 # easm.py FORGED_TIER guard, generalized against core/tiering.py's existing
 # verifiability_ceiling() discipline instead of duplicating it.
 # ---------------------------------------------------------------------------

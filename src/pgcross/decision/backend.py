@@ -3,7 +3,7 @@
 `backends/base.py`'s `LLMBackend` protocol is transport-only (I7 structure-extraction: it may
 never assert a fact or a number, see `LLMBackend.transport`'s docstring). `DecisionBackend` is a
 different contract: it is only ever reached after the witness-before-model / resolution-gate
-sequence in the project's architecture design notes (Toledo `A3`, `witness_sound`/
+sequence in the project's architecture design notes (the equation registry's `A3`, `witness_sound`/
 `witness_complete`/`decide_reflect`, all `Th_coqc`) has already found no finite witness and no
 resolved readout — at that point a `DecisionBackend` may PROPOSE a typed answer with a
 probability, never authorize one. Per the project's internal architecture audit notes (Backends
@@ -13,8 +13,8 @@ section) and the architecture design notes §3/§6a: "a model may propose, never
 outcome.
 
 `decision/schema.py` (Phase 2, item 16 of the project's internal task-tracking notes) is the
-reconciled owner of `DecisionQuestion`/`DecisionProposal` going forward (Stream 3's design, per
-Phase 0 item 1's maintainer resolution). This module checks for that file first and imports from
+reconciled owner of `DecisionQuestion`/`DecisionProposal` going forward, per the project's
+internal task-tracking notes' Phase 0 item 1 maintainer resolution. This module checks for that file first and imports from
 it; only if it has
 not landed yet does it define minimal pydantic stand-in types locally, so this module never forks
 a second, competing schema.
@@ -32,7 +32,7 @@ from __future__ import annotations
 from typing import Callable, Protocol, runtime_checkable
 
 try:
-    # Stream 3's reconciled schema (internal task-tracking notes, Phase 2, item 16), if it has landed.
+    # this module's reconciled schema (internal task-tracking notes, Phase 2, item 16), if it has landed.
     # NOTE: schema.py's DecisionAnswer field is `resolution`, not `value` (see this module's
     # MockBackend.decide(), which constructs it accordingly) -- the two schemas were originally
     # drafted independently (Phase 0 item 1's three-way conflict) and this is the reconciliation.
@@ -50,7 +50,7 @@ except ImportError:
     class S4(str, Enum):
         """Determinate-positive/negative/zero, plus the distinct unresolved state.
 
-        Per Toledo `D/M.65.v1` (`neutral_distinct_from_bottom`, Th_coqc): `Sz <> Sbot` —
+        Per the equation registry's `D/M.65.v1` (`neutral_distinct_from_bottom`, Th_coqc): `Sz <> Sbot` —
         "determinate zero" and "unresolved" are formally distinct constructors and must never be
         collapsed into each other (never coerce `BOT` into `None`/falsy/zero at a serialization
         boundary). See the project's architecture design notes §2.4.
@@ -64,7 +64,7 @@ except ImportError:
     class DecisionQuestion(BaseModel):
         """A single typed question posed to a DecisionBackend.
 
-        Minimal stand-in only — `decision/schema.py` (once Stream 3 lands) is the reconciled
+        Minimal stand-in only — `decision/schema.py` (once this module's design lands) is the reconciled
         owner; this shape exists so `DecisionBackend` has something concrete to type against in
         the meantime, per the project's architecture design notes §3.
         """

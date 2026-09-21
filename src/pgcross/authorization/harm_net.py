@@ -1,12 +1,12 @@
 """authorization/harm_net.py — independent, query-level harm-intent net + DANGER/ADVISORY/WEAKNESS
-taxonomy, ported from the legacy `humane_gate.py` (Stream 3 step 5, internal task-tracking
+taxonomy, ported from the legacy `humane_gate.py` (this module's design, internal task-tracking
 notes, item 23).
 
 **Split rationale (documented per the task's "your call on the cleanest split"):** the harm-pattern
 regex set is a self-contained, N12/RAG-agnostic piece of `humane_gate.py` — it does not touch
 `rag_solver`/`byo`/`answer_policy`/`bundle` at all (see `humane_gate.py`'s own docstring: "does NOT
 rely on N12's keyword list"). Splitting it into its own sibling module keeps `authorization/policy.py`
-focused on the witness-before-model / resolution-gate / forged-tier concerns (Stream 3 step 4) and
+focused on the witness-before-model / resolution-gate / forged-tier concerns (this module's design) and
 lets this module's regex-parity claim be tested in isolation, with its own dedicated diff test
 against the source `humane_gate.py` lists.
 

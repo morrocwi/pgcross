@@ -1,7 +1,7 @@
 """Generic associative fold primitive — the `A2` root instance for Verify/Authorize.
 
-Toledo `A2` ("FOLD (the engine)", untagged/root, `status: current`), statement as registered
-in Toledo's canonical equation registry (read verbatim, not paraphrased from memory;
+the equation registry's `A2` ("FOLD (the engine)", untagged/root, `status: current`), statement as registered
+in this project's own equation-grounding registry (read verbatim, not paraphrased from memory;
 also quoted in the project's architecture design notes §1/§2.1):
 
     I_⊕[f](N) = ⨁_{k<N} f[k]      (and, for the differenced form: I(Df) = f[N] ⊟ f[0])
@@ -41,7 +41,7 @@ T = TypeVar("T")
 def fold(op: Callable[[T, T], T], items: Iterable[T], identity: T) -> T:
     """The generic `A2` fold: `I_⊕[f](N) = ⨁_{k<N} f[k]`.
 
-    `op` is the `⊕` of the Toledo statement; `identity` is `⊕`'s identity element so that an
+    `op` is the `⊕` of the equation registry's statement; `identity` is `⊕`'s identity element so that an
     empty `items` returns `identity` rather than raising. `op` must be associative for the
     result to be independent of evaluation order/chunking, per `A2`'s own registered statement.
     """

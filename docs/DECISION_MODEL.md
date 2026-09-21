@@ -60,7 +60,7 @@ Four values, not three and not two: a determinate positive, a determinate negati
 ("could not check"). The module docstring is explicit about why `ZERO` and `BOT` cannot be merged
 or represented as `None`/falsy:
 
-> Toledo `D/M.65.v1` (`neutral_distinct_from_bottom`, **Th_coqc**), statement as registered:
+> the equation registry's `D/M.65.v1` (`neutral_distinct_from_bottom`, **Th_coqc**), statement as registered:
 > `Sz <> Sbot` — "the four-value algebra's 'determinate zero' and 'unresolved' are formally
 > distinct constructors, never conflatable."
 > "checked, found nothing" (`ZERO`) and "could not check" (`BOT`) must never collapse into each
@@ -82,8 +82,8 @@ have made that result unresolved, so stopping immediately is safe (`authorizatio
 `resolution_gate` docstring; see §3 below).
 
 Both citations are taken verbatim from the code's own docstrings, which state they were read
-directly from Toledo's canonical equation registry, not paraphrased. This document adds
-no new Toledo claim beyond what `core/s4.py` and `authorization/policy.py` already cite.
+directly from this project's own equation-grounding registry, not paraphrased. This document adds
+no new equation-registry claim beyond what `core/s4.py` and `authorization/policy.py` already cite.
 
 `BOT` maps directly to `HOLD` in the Authorize stage — never to `ZERO`, never to a fabricated
 `POS`/`NEG` guess.

@@ -1,11 +1,10 @@
 """decision/schema.py — the reconciled Verify/Authorize-stage contract.
 
-Stream 3's design (`pgcross-verify-authorize-split-and-decision-kernel`), confirmed by the
-project maintainers as the base for `decision/schema.py`/`authorization/policy.py` (Phase 0
-item 1 of the project's internal task-tracking notes, RESOLVED 2026-09-21). This is Phase 2
-item 16 of the same tracking notes.
+The design confirmed by the project maintainers as the base for `decision/schema.py`/
+`authorization/policy.py` (Phase 0 item 1 of the project's internal task-tracking notes,
+RESOLVED 2026-09-21). This is Phase 2 item 16 of the same tracking notes.
 
-Grounds (Toledo-verified primitives, cited by exact code, per `EPIS-TOLEDO-FIRST` and the
+Grounds (registry-verified primitives, cited by exact code, per this project's own lookup-before-derive discipline and the
 project's architecture design notes §1/§2.4):
 
 - `D/M.65.v1` (`neutral_distinct_from_bottom`, **Th_coqc**): `Sz <> Sbot` — "determinate zero"
@@ -47,8 +46,8 @@ succeed, but that import list is incomplete — it does not also import `S4`/`De
 here, so `MockBackend`/`DeterministicBackend` (which reference bare `S4`/`DecisionAnswer` at
 call time) will raise `NameError` once this file exists, and `tests/test_decision_backend.py`
 constructs `DecisionAnswer(question_id=..., value=...)` (field name `value`) against this file's
-`DecisionAnswer(question_id=..., resolution=...)` (field name `resolution`, per this Stream 3
-task's explicit spec). Both are flagged here, not silently patched around, per this run's
+`DecisionAnswer(question_id=..., resolution=...)` (field name `resolution`, per this file's
+own explicit spec). Both are flagged here, not silently patched around, per this run's
 per-file scope (`decision/schema.py` + its own test only) — someone will reconcile
 `decision/backend.py` and `tests/test_decision_backend.py` against this file's field names next.
 """
@@ -96,7 +95,7 @@ class AuthorizationStatus(str, Enum):
 class Readout(BaseModel):
     """One finite, retained readout of world/state (δ_R) feeding a `DecisionQuestion`.
 
-    Per this workspace's `EPIS-UNIVERSAL-LENS`: a readout is a finite observation, not the
+    Per this project's own readout-not-truth epistemic stance: a readout is a finite observation, not the
     thing-in-itself. `source_ref` names where it came from (a `Candidate.provider_id`, a raw
     field in `pipeline.ground`'s slots, etc.) so a reader can trace a `Readout` back to its
     origin instead of treating it as free-floating truth.

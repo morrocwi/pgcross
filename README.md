@@ -1,7 +1,6 @@
-# pgcross-1 — Verified-Reasoning Server
+# pgcross — Verified-Reasoning, Evidence-Gated Decision Server
 
-> Licensed under Apache License 2.0 (see `LICENSE`). Repository visibility is currently private;
-> license and visibility are independent facts — see `REPO_ROLE.md`.
+> Licensed under Apache License 2.0 (see `LICENSE`). Public repository.
 
 ## What it is
 
@@ -50,7 +49,13 @@ is wrong regardless of what else it improves.
 
 ## Quickstart
 
+Nothing to download from anywhere else first — clone, install, run. `pgcross serve` starts on
+the deterministic pipeline alone by default (no model weights needed at all for the engine
+cards / RAG / grounding path):
+
 ```bash
+git clone https://github.com/morrocwi/pgcross.git
+cd pgcross
 pip install -e .[dev]
 pgcross init
 pgcross serve --unsafe-dev   # dev only: wires keyword safety stub
@@ -61,6 +66,22 @@ curl localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"pgcross-1","messages":[{"role":"user","content":"epidemic beta=0.3 gamma=0.1 lambda_max=3?"}]}'
 ```
+
+### Optional: a model behind the witness-before-model gate
+
+Add `--decision-backend openthai-local` to route the small residual of queries the
+deterministic gate can't resolve to [OpenThai-SystemOne](https://huggingface.co/iapp/OpenThai-SystemOne)
+(Apache-2.0), run in-process:
+
+```bash
+pip install -e .[openthai]                     # one extra, no separate download step
+pgcross serve --unsafe-dev --decision-backend openthai-local
+```
+
+The model weights (~0.8B params, BF16) download automatically from the Hugging Face Hub on
+first use (standard `huggingface_hub` caching — a one-time transparent download the first time
+the backend is actually reached, not a manual step you do beforehand). See `REPO_ROLE.md` for
+what this backend can and cannot do: it only ever *proposes* — see the Invariants above.
 
 ## Configuration
 
@@ -104,15 +125,16 @@ below.
 
 - Real safety classifier (PROVE-IT; startup guarantees a layer is present, not that it works)
 - NLI entailment in `support_check` (PROVE-IT; current lexical gate will pass paraphrases)
-- Larger-model comparison K2/K3 (OPEN; does not block internal use)
-- External distribution (BLOCKED pending license AUDIT + real safety layer)
+- Larger-model comparison K2/K3 (OPEN; not a release blocker)
 
 ## License
 
 PGCross is licensed under the Apache License 2.0 — see `LICENSE`. It is assembled from
 permissive OSS dependencies (MIT/BSD/Apache-2.0 — see `THIRD_PARTY_NOTICES.md` and
-`licenses/AUDIT.md`). GPL/AGPL dependencies are banned; CI fails on them. Repository visibility
-is currently private, independent of the license — see `REPO_ROLE.md`. External distribution is
-blocked until the release gate (`RELEASE_GATE.md`) passes and safety is proven.
+`licenses/AUDIT.md`). GPL/AGPL dependencies are banned; CI fails on them.
+
+The safety layer shipped here is a keyword stub, not a production classifier (see "Known limits"
+above) — treat this as research/development-stage software, not a hardened production service,
+until a real safety classifier lands.
 
 See `CLAIMS.md` for pre-registered claims with CIs.
