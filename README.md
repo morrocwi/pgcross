@@ -155,6 +155,13 @@ pgcross check --conformance    # verify I1-I8 against your loaded config
   benchmark — same honesty discipline as the LOOCV note above. Covers: deterministic queries
   correctly bypass the model entirely (2/2), harm-net safety override wins regardless of what the
   model would say (2/2), real model-assisted judgment in English (4/4) and Thai (4/4).
+- **External public-dataset check: 82/100 (82.0%)** — `eval/xnli_th_external_benchmark.py`
+  (`pip install pgcross[openthai,eval]`), a genuine third-party dataset
+  (`facebook/xnli`, Thai config, `validation` split, 2490 examples), NOT authored by this
+  project, sampled 100 with a fixed seed (reproducible reruns) and scored for real.
+  **Not comparable** to OpenThai-SystemOne's own published XNLI-th number (76.5%) — different
+  system (the whole Forge, not the bare model), different sample size, different harness; see
+  the script's own docstring before citing this number anywhere else.
 
 ## Engine cards
 

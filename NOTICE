@@ -72,6 +72,22 @@ redistributed in this repository)
 License: Apache-2.0
 Copyright: Copyright (c) unitary and contributors
 
+Package: datasets ([eval] extra, used by eval/xnli_th_external_benchmark.py to load a public
+benchmark dataset at runtime -- not shipped with, or a runtime dependency of, the pgcross package
+itself)
+License: Apache-2.0
+Copyright: Copyright (c) The HuggingFace team
+
+Package: facebook/xnli (dataset, downloaded at runtime via [eval] extra, not redistributed in
+this repository)
+License: not stated on the dataset's own Hugging Face card as of 2026-09-21 ("Licensing
+Information: More Information Needed") -- checked directly before writing this entry, not
+assumed. Used here for evaluation only (measuring pgcross's own decision quality against a
+public benchmark), never redistributed or bundled; this repository's own Apache-2.0 code license
+is unaffected since no dataset content ships in this repo. A user running
+eval/xnli_th_external_benchmark.py downloads the dataset directly from Hugging Face under
+whatever terms apply there, independent of this project.
+
 ## Development dependencies (not shipped in production builds)
 
 Package: pytest ([dev] extra)

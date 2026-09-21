@@ -24,6 +24,7 @@ vllm = ["vllm>=0.4"]
 rag = ["sentence-transformers>=2.7", "pypdf>=4"]
 openthai = ["openthai-systemone"]
 safety = ["transformers>=4.40", "torch>=2.0"]
+eval = ["datasets>=2.14"]
 dev = ["pytest>=8", "pip-licenses>=4"]
 
 [project.scripts]

@@ -111,6 +111,22 @@ preserved here as required by each respective license.
 - **Compliance note:** Model weights, not code — downloaded at runtime via the Hugging Face Hub
   when `--safety classifier` is used; not redistributed in this repository. Permissive, compliant.
 
+### datasets
+- **License:** Apache-2.0
+- **Copyright:** The HuggingFace team
+- **SPDX:** Apache-2.0
+- **Compliance note:** Permissive. `[eval]` extra, used only by
+  `eval/xnli_th_external_benchmark.py` to load a public dataset at runtime — not a runtime
+  dependency of the `pgcross` package itself. Compliant.
+
+### facebook/xnli (dataset)
+- **License:** Not stated on the dataset's own Hugging Face card as of 2026-09-21
+  ("Licensing Information: More Information Needed") — checked directly, not assumed.
+- **Compliance note:** Downloaded at runtime via `[eval]`, for evaluation only; never
+  redistributed or bundled in this repository, so this repo's own Apache-2.0 code license is
+  unaffected. A user running the eval script fetches it directly from Hugging Face under
+  whatever terms apply there.
+
 ---
 
 ## Development Dependencies (not shipped in production builds)
