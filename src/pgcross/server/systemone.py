@@ -16,29 +16,37 @@ against each other):
 
 Every question is answered by running it through pgcross's OWN `run_pipeline()` — never a
 separate, weaker code path (same "`run_pipeline()` is the single source of truth" invariant
-`server/decision.py` documents). `state` + `instructions` become the query text; the real
-Verify/Authorize-stage `AuthorizationResult` determines the typed answer.
+`server/decision.py` documents). `state` + `instructions` become the query text passed to the
+deterministic pipeline; the caller's REAL typed question is ALSO threaded through as
+`QueryIR.decision_question` (see `core/models.py`) so that if no deterministic path resolves it,
+`pipeline/authorize.py`'s witness-before-model gate asks the model THIS question directly, not a
+synthetic "is the fallback candidate admissible" one.
 
-INTERPRETIVE MAPPING (the ONE place this happens, matching `decision/backend.py`'s own documented
-precedent for the reverse direction): stated explicitly because `AuthorizationResult` carries no
-numeric probability field (only `status`/`reason`/`stakes`, see `decision/schema.py`) — inventing
-false precision here would violate this project's own readout-not-truth discipline.
-  - ADMIT + tier `Th_coqc`/`finite_diagnostic` -> 1.0 (the tier ladder's own top two rungs:
-    machine-verified / independently cross-checked)
-  - ADMIT + tier `Dr` -> 0.85 (source-attributed, single-path computation)
-  - ADMIT + tier `Wf` -> 0.65 (working-framework consistency only)
-  - ADMIT + tier `Open`, or any HOLD/REJECT/ESCALATE -> 0.0 ("no" for `noul`; the request's own
-    lowest-confidence choice/score option, since pgcross found nothing it will stand behind)
-  This is a DECLARED, DOCUMENTED FLOOR MAPPING off the existing I1 tier ladder (README's "Tier
-  ladder" section) — not a measured probability, and not the same thing as a real DecisionBackend's
-  own probability (a genuinely measured model output, see `_openthai_response_to_proposal`). Never
-  conflate the two; a caller reading this endpoint's probabilities should know they are reading a
-  tier floor, not a model's confidence score.
+**Real bug found and fixed live 2026-09-21**: before this fix, this endpoint discarded the
+caller's typed question entirely once inside the pipeline, so a trivially-true factual question
+("is the Eiffel Tower in Paris?") got back a confident "no" — the model was being asked whether
+a generic CONSULTATION placeholder was an admissible answer, not the caller's real question. See
+`pipeline/authorize.py::_authorize_status`'s own docstring for the full incident writeup.
 
-`score`/`choice` answer selection is a best-effort substring match of the primary candidate's
-content against the request's own criteria/levels — documented as a heuristic, not NLU, since
-building real classification here would itself be exactly the un-grounded guessing this project's
-I2 invariant exists to prevent.
+TWO answer sources, used in this priority order (the ONE place both are documented):
+  1. **`resp.authorization.model_proposal`** (real, when set) — a `decision_backend` answered the
+     caller's REAL typed question directly (no deterministic path existed). Its `label`/
+     `probability`/`probabilities` are used verbatim (converted to this endpoint's wire shape,
+     see `_answer_from_model_proposal` below) — a genuinely measured model output, not invented.
+  2. **The declared tier-floor mapping** (when `model_proposal` is `None` — a deterministic path
+     DID resolve it, or the harm-net fired, or no `decision_backend` is configured at all):
+     `AuthorizationResult` carries no numeric probability field in this case (only
+     `status`/`reason`/`stakes`) — inventing false precision here would violate this project's
+     own readout-not-truth discipline, so a DECLARED FLOOR off the existing I1 tier ladder is used
+     instead: ADMIT + tier `Th_coqc`/`finite_diagnostic` -> 1.0, ADMIT + tier `Dr` -> 0.85, ADMIT
+     + tier `Wf` -> 0.65, ADMIT + tier `Open` or any HOLD/REJECT/ESCALATE -> 0.0. Never conflate
+     this floor with a real model probability; a caller reading this endpoint's probabilities in
+     this branch should know they are reading a tier floor.
+
+`score`/`choice` answer selection for the tier-floor branch ONLY is a best-effort substring match
+of the primary candidate's content against the request's own criteria/levels — documented as a
+heuristic, not NLU. The `model_proposal` branch never needs this heuristic; it uses the model's
+own real answer.
 """
 from __future__ import annotations
 
@@ -48,7 +56,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from ..core.enums import Tier
-from ..decision.schema import AuthorizationStatus
+from ..decision.schema import AuthorizationStatus, DecisionQuestion
 from ..pipeline.run import HarmfulRequest, run_pipeline
 
 router = APIRouter()
@@ -71,6 +79,65 @@ def _query_text(state: dict, instructions: str) -> str:
     if not state:
         return instructions
     return f"{instructions} (context: {state!r})"
+
+
+def _to_decision_question(qid: str, question: dict) -> DecisionQuestion:
+    """Wire-format question dict -> the real, typed `DecisionQuestion` a `decision_backend`
+    can answer directly, threaded through `run_pipeline(..., decision_question=...)`."""
+    kind = question.get("type", "choice")
+    instructions = question.get("instructions", "")
+    if kind == "noul":
+        return DecisionQuestion(id=qid, text=instructions, kind="noul")
+    if kind == "score":
+        return DecisionQuestion(id=qid, text=instructions, kind="score",
+                                 levels=list(question.get("criteria", [])))
+    criteria = question.get("criteria", {})
+    if isinstance(criteria, dict):
+        return DecisionQuestion(id=qid, text=instructions, kind="choice", option_descriptions=criteria)
+    return DecisionQuestion(id=qid, text=instructions, kind="choice", options=list(criteria))
+
+
+def _score_index(label: str | None, n_levels: int) -> int:
+    """A `kind="score"` `DecisionAnswer.label` is a float string -- a continuous weighted-average
+    index into `levels`, not level text verbatim (confirmed live 2026-09-21 by a real `decide()`
+    call before this was written, same finding as `eval/jev_public_benchmark_suite.py`'s own
+    `_score_index` helper -- duplicated here rather than imported, since `eval/` is dev/benchmark
+    tooling this server module must not depend on). Rounds to the nearest valid index, clamped.
+
+    `DecisionBackend` is a `Protocol` (decision/backend.py), an open extensibility point -- every
+    first-party backend always sets `label` to a real numeric string for `kind="score"`, but a
+    non-conforming third-party implementation could return `label=None` or a non-numeric string.
+    Caught by an independent review before this endpoint's first push: defaults to the middle
+    level (the least-wrong single guess when the answer itself is malformed) rather than raising
+    a 500 and crashing the request -- this is a defensive fallback for a backend violating its
+    own documented contract, not a case this project's first-party backends can ever hit."""
+    if label is None:
+        return n_levels // 2
+    try:
+        idx = round(float(label))
+    except (TypeError, ValueError):
+        return n_levels // 2
+    return max(0, min(n_levels - 1, idx))
+
+
+def _answer_from_model_proposal(question: dict, answer) -> dict:
+    """Convert a REAL `DecisionAnswer` (from `resp.authorization.model_proposal`) into this
+    endpoint's wire shape. This is a real, measured model output -- see module docstring's
+    priority-order note; never falls back to the tier-floor heuristic."""
+    kind = question.get("type", "choice")
+    if kind == "noul":
+        return {"noul": answer.probability}
+    if kind == "score":
+        levels = list(question.get("criteria", []))
+        if not levels:
+            return {"score": None, "confidence": answer.probability, "probabilities": {}}
+        idx = _score_index(answer.label, len(levels))
+        picked = levels[idx]
+        return {"score": picked, "confidence": answer.probability,
+                "probabilities": {levels[int(k)]: v for k, v in answer.probabilities.items()
+                                   if k.isdigit() and int(k) < len(levels)}}
+    # "choice"
+    return {"choice": answer.label, "probabilities": dict(answer.probabilities)}
 
 
 def _floor_probability(status: AuthorizationStatus, tier) -> float:
@@ -125,8 +192,9 @@ async def systemone(req: SystemOneRequest, request: Request) -> dict:
     for qid, question in req.questions.items():
         instructions = question.get("instructions", "")
         query = _query_text(req.state, instructions)
+        decision_question = _to_decision_question(qid, question)
         try:
-            resp = run_pipeline(query, ctx)
+            resp = run_pipeline(query, ctx, decision_question=decision_question)
         except HarmfulRequest:
             # Refused before Verify/Authorize ever ran — report as "no"/lowest-confidence rather
             # than fabricating a resolved answer for a query the pipeline never actually assessed.
@@ -141,6 +209,10 @@ async def systemone(req: SystemOneRequest, request: Request) -> dict:
                 options = list(criteria.keys()) if isinstance(criteria, dict) else list(criteria)
                 answers[qid] = {"choice": options[0] if options else None, "probabilities": {}}
             continue
-        answers[qid] = _answer_one(question, resp, resp.authorization.status)
+        model_proposal = resp.authorization.model_proposal
+        if model_proposal is not None and model_proposal.answers:
+            answers[qid] = _answer_from_model_proposal(question, model_proposal.answers[0])
+        else:
+            answers[qid] = _answer_one(question, resp, resp.authorization.status)
 
     return {"answers": answers, "request_id": "systemone-" + uuid.uuid4().hex[:24]}

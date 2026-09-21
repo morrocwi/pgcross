@@ -73,13 +73,18 @@ def _witness_probe(cand: Any) -> VerifierResult:
     )
 
 
-def _authorize_status(cands: list, q, decision_backend: Any = None) -> tuple[AuthorizationStatus, str, Any]:
+def _authorize_status(
+    cands: list, q, decision_backend: Any = None
+) -> tuple[AuthorizationStatus, str, Any, Any]:
     """Harm/stakes taxonomy (`classify_and_authorize`, `authorization/policy.py`) + witness-
     before-model gate (`needs_decision_backend`), per the project's architecture design notes
-    §2.3/§3/§4 item 1. Returns `(status, reason, danger_source)`; `danger_source` is the
-    candidate whose content triggered a DANGER classification (or `None` when the query text
-    itself did, or when nothing did) — the caller uses it to make sure that exact candidate can
-    never become `Response.primary` (the F1 invariant below).
+    §2.3/§3/§4 item 1. Returns `(status, reason, danger_source, model_proposal)`. `danger_source`
+    is the candidate whose content triggered a DANGER classification (or `None` when the query
+    text itself did, or when nothing did) — the caller uses it to make sure that exact candidate
+    can never become `Response.primary` (the F1 invariant below). `model_proposal` is the real
+    `DecisionProposal` a `decision_backend` returned, but ONLY when it answered a caller-supplied
+    `q.decision_question` directly — `None` for every other path (deterministic resolution, the
+    admissibility-check question, harm-net, no backend configured).
 
     Query text is checked FIRST (matches `classify_harm_taxonomy`'s own "gated by the
     independent harm net first" ordering); every surviving candidate's own content is then
@@ -96,12 +101,12 @@ def _authorize_status(cands: list, q, decision_backend: Any = None) -> tuple[Aut
     """
     q_status = classify_and_authorize(q.text)
     if q_status in (AuthorizationStatus.REJECT, AuthorizationStatus.ESCALATE):
-        return q_status, f"harm/stakes taxonomy on query text: {q_status.value}", None
+        return q_status, f"harm/stakes taxonomy on query text: {q_status.value}", None, None
 
     for c in cands:
         c_status = classify_and_authorize(c)
         if c_status in (AuthorizationStatus.REJECT, AuthorizationStatus.ESCALATE):
-            return c_status, f"harm/stakes taxonomy on candidate {c.provider_id!r}: {c_status.value}", c
+            return c_status, f"harm/stakes taxonomy on candidate {c.provider_id!r}: {c_status.value}", c, None
 
     # No DANGER anywhere (query or candidates). q_status is now ADMIT (ADVISORY) or HOLD
     # (WEAKNESS) — still gate it through "witness before model" (A3 + D/M.77.v1) for the primary
@@ -125,19 +130,40 @@ def _authorize_status(cands: list, q, decision_backend: Any = None) -> tuple[Aut
                     "no finite witness resolved the primary candidate and no DecisionBackend is "
                     "configured for this call — defaulting to HOLD, never a guess",
                     None,
+                    None,
                 )
-            # "The model proposed, PGCross authorized": one typed question about the primary
-            # candidate, per DecisionBackend's own documented FAILURE POLICY (decision/backend.py)
-            # -- a raise/timeout here is THIS caller's responsibility to default to HOLD, exactly
-            # like the no-backend-configured branch above, never propagated as an unhandled error.
-            question = DecisionQuestion(
-                id=_MODEL_QUESTION_ID,
-                text=(
-                    f"Given the query {q.text!r}, is the following proposed answer admissible "
-                    f"as a response: {primary.content!r}?"
-                ),
-                kind="noul",
-            )
+            # "The model proposed, PGCross authorized": one typed question, per DecisionBackend's
+            # own documented FAILURE POLICY (decision/backend.py) -- a raise/timeout here is THIS
+            # caller's responsibility to default to HOLD, exactly like the no-backend-configured
+            # branch above, never propagated as an unhandled error.
+            #
+            # Real bug found and fixed live 2026-09-21 (server/systemone.py stress-tested by the
+            # founder against a trivially-true factual question -- "is the Eiffel Tower in
+            # Paris?" -- and got back a confident "no"): when no other pipeline stage produced a
+            # real answer, `cands`'s primary is a generic CONSULTATION/CLARIFY placeholder (I4's
+            # own fallback), and the OLD code here ALWAYS asked the model "is THIS PLACEHOLDER an
+            # admissible answer" -- a different, nonsensical question the model correctly (but
+            # uselessly) answers "no" to, regardless of the real answer to the caller's actual
+            # question. A caller that HAS a real typed question to ask (e.g. server/systemone.py,
+            # which received a real noul/choice/score question from an external caller) now sets
+            # `QueryIR.decision_question` (see core/models.py) so THAT question is asked directly
+            # instead of the synthetic admissibility one. Callers that never set it (chat.py,
+            # decision.py, every existing test) get byte-identical behavior to before this fix --
+            # the admissibility-check question is still the right one when there IS no caller-
+            # supplied typed question, since it is genuinely asking "should this text I'm about
+            # to hand back be trusted," which remains a meaningful question in that context.
+            caller_question = getattr(q, "decision_question", None)
+            if caller_question is not None:
+                question = caller_question
+            else:
+                question = DecisionQuestion(
+                    id=_MODEL_QUESTION_ID,
+                    text=(
+                        f"Given the query {q.text!r}, is the following proposed answer admissible "
+                        f"as a response: {primary.content!r}?"
+                    ),
+                    kind="noul",
+                )
             try:
                 proposal = decision_backend.decide(
                     state={"query": q.text, "candidate_content": primary.content,
@@ -150,10 +176,16 @@ def _authorize_status(cands: list, q, decision_backend: Any = None) -> tuple[Aut
                     f"DecisionBackend call raised ({type(exc).__name__}: {exc}) — defaulting to "
                     "HOLD per its documented FAILURE POLICY, never a guess",
                     None,
+                    None,
                 )
-            status, reason = authorize_decision_proposal(proposal, _MODEL_QUESTION_ID)
-            return status, reason, None
-    return q_status, f"harm/stakes taxonomy: {q_status.value}", None
+            status, reason = authorize_decision_proposal(proposal, question.id)
+            # model_proposal is surfaced to the caller only when it answered a REAL caller-
+            # supplied question -- the synthetic admissibility-check proposal answers a different
+            # question ("is this placeholder admissible") that would mislead a caller reading it
+            # as if it were an answer to their own question.
+            model_proposal = proposal if caller_question is not None else None
+            return status, reason, None, model_proposal
+    return q_status, f"harm/stakes taxonomy: {q_status.value}", None, None
 
 
 def authorize(cands: list, q, cfg) -> Response:
@@ -191,7 +223,9 @@ def authorize(cands: list, q, cfg) -> Response:
     # ---- NEW (this module's design): ADMIT/HOLD/REJECT/ESCALATE + witness-before-model gate -------
     # cfg.decision_backend is optional (getattr default None) -- callers that don't configure one
     # get the exact same honest HOLD-on-⊥ behavior as before a real backend existed.
-    status, reason, danger_source = _authorize_status(cands, q, getattr(cfg, "decision_backend", None))
+    status, reason, danger_source, model_proposal = _authorize_status(
+        cands, q, getattr(cfg, "decision_backend", None)
+    )
 
     # F1 invariant, first-ever test in this codebase (tests/test_f1_gate_bypass.py): an
     # ESCALATE/REJECT-classified candidate can NEVER become Response.primary, no matter its
@@ -227,5 +261,6 @@ def authorize(cands: list, q, cfg) -> Response:
         reason=reason,
         stakes=q.stakes,
         consultation_offered=any(c.ctype == CType.CONSULTATION for c in cands),
+        model_proposal=model_proposal,
     )
     return AuthorizedResponse(candidates=cands, primary=primary, stakes=q.stakes, authorization=auth_result)

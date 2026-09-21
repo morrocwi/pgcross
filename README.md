@@ -126,10 +126,25 @@ curl localhost:8000/v1/systemone \
   -d '{"state":{"query":"10*10"},"questions":{"admissible":{"type":"noul","instructions":"Is 100 correct for 10*10?"}}}'
 ```
 
-Answer probabilities here are a **declared tier-floor mapping** (I1's tier ladder above, e.g.
-`Th_coqc`/`finite_diagnostic` → 1.0, `Wf` → 0.65), not a measured model confidence — see
-`server/systemone.py`'s module docstring for the exact, explicit mapping. This is pgcross
-*speaking the wire contract*, not pgcross *being* Jev/TypeSafe — no affiliation is claimed.
+**Real bug found and fixed 2026-09-21**: this endpoint used to discard the caller's actual
+question once inside the pipeline, asking the model a different, nonsensical question instead
+("is this fallback placeholder text admissible") whenever no engine card/RAG resolved anything —
+so a trivially-true question like "is the Eiffel Tower in Paris?" came back a confident `0.0`
+("no"). Fixed system-wide, not a local patch: `core/models.py::QueryIR` now carries an optional
+`decision_question`, threaded through `run_pipeline()` into `pipeline/authorize.py`'s
+witness-before-model gate, so the caller's REAL typed question is asked directly when nothing
+else resolves it. Every other caller of `run_pipeline()` (the chat/decision endpoints, every
+pre-existing test) is byte-for-byte unaffected — the fix is additive and opt-in via this new
+field. Verified live against the real model after the fix: the Paris case now returns `~0.97`,
+a paired false case ("...in London?") returns `~0.01`.
+
+Answer probabilities here now come from two sources, in priority order (see
+`server/systemone.py`'s module docstring for the exact rule): (1) a **real, measured** model
+probability when a `decision_backend` answered the caller's actual question directly; (2) a
+**declared tier-floor mapping** (I1's tier ladder above, e.g. `Th_coqc`/`finite_diagnostic` →
+1.0, `Wf` → 0.65) — NOT a measured confidence — only when a deterministic path resolved the
+answer, or when no `decision_backend` is configured at all. This is pgcross *speaking the wire
+contract*, not pgcross *being* Jev/TypeSafe — no affiliation is claimed.
 
 ## Configuration
 

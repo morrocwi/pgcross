@@ -274,6 +274,14 @@ class AuthorizationResult(BaseModel):
     stakes: Stakes
     consultation_offered: bool = False
     source_verifications: list[VerificationResult] = Field(default_factory=list)
+    model_proposal: DecisionProposal | None = None  # set only when a DecisionBackend answered a
+        # caller-supplied QueryIR.decision_question directly (pipeline/authorize.py) -- carries
+        # the real DecisionAnswer(s) (label/probability/probabilities), not the declared
+        # ADMIT/HOLD/REJECT/ESCALATE tier-floor this result's own `status` already is. A caller
+        # that needs the model's real judgment (e.g. server/systemone.py) reads this instead of
+        # inventing a probability from `status`/tier. `None` for every other authorization path
+        # (deterministic resolution, the pre-existing candidate-admissibility check, harm-net) --
+        # those never had a caller-supplied typed question to answer in the first place.
 
     @field_serializer("status")
     def _ser_status(self, v: AuthorizationStatus) -> str:

@@ -106,10 +106,19 @@ def _reassert_f1_gate(resp: Response, q: QueryIR) -> None:
     resp.primary = len(resp.candidates) - 1
 
 
-def run_pipeline(user_text: str, ctx: Ctx) -> Response:
+def run_pipeline(user_text: str, ctx: Ctx, decision_question: object = None) -> Response:
+    """`decision_question` (optional, a `decision.schema.DecisionQuestion`): when a caller has a
+    real typed noul/choice/score question to ask (not just free text) -- e.g. `server/
+    systemone.py`, answering a Jev/TypeSafe-style typed request -- pass it here so `pipeline/
+    authorize.py`'s witness-before-model gate asks THIS question directly to a configured
+    `decision_backend` instead of its own synthetic "is the fallback candidate admissible"
+    question. See `core/models.py::QueryIR.decision_question` and `authorize.py::
+    _authorize_status`'s own docstring for why this distinction is real, not cosmetic (a real
+    bug, found live 2026-09-21, otherwise: a trivially-true factual question got a confident
+    "no" back, because the synthetic question was being asked instead of the real one)."""
     if ctx.safety is not None and ctx.safety(user_text):     # I8 — separate switch, injected
         raise HarmfulRequest()
-    q = QueryIR(text=user_text)
+    q = QueryIR(text=user_text, decision_question=decision_question)
     q.stakes = ctx.classify_stakes(user_text)
     q = ground(q, ctx.backend)
     q = compose(q, ctx.registry, route)               # engine-to-engine slot composition (1 hop, capped)

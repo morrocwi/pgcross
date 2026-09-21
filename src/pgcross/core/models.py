@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 from pydantic import BaseModel, Field, field_serializer
 from .enums import Tier, CType, Verifiability, Grounding, Stakes
 
@@ -25,6 +26,16 @@ class QueryIR(BaseModel):
                                                                    #  DERIVED by another card, never read from text)
     retrieval_terms: list[str] = Field(default_factory=list)
     stakes: Stakes = Stakes.LOW
+    decision_question: Any | None = None  # optional decision.schema.DecisionQuestion, set by a
+        # caller (e.g. server/systemone.py) that has a real typed noul/choice/score question to
+        # ask -- typed `Any`, not the concrete DecisionQuestion type, to avoid the circular
+        # import decision/schema.py already has on this module (it imports EvidenceCandidate/
+        # Provenance FROM here). When set and the witness-before-model gate would otherwise ask
+        # a synthetic "is the fallback candidate admissible" question, pipeline/authorize.py asks
+        # THIS question directly instead -- see its own docstring for why that distinction is
+        # real, not cosmetic (found live 2026-09-21: the synthetic question is nonsensical when
+        # no other pipeline stage produced a real candidate to judge the admissibility of).
+    model_config = {"arbitrary_types_allowed": True}
     def slots_partially_known(self) -> bool: return len(self.slots) > 0
 
 class EvidenceCandidate(BaseModel):
