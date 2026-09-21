@@ -162,6 +162,16 @@ pgcross check --conformance    # verify I1-I8 against your loaded config
   **Not comparable** to OpenThai-SystemOne's own published XNLI-th number (76.5%) — different
   system (the whole Forge, not the bare model), different sample size, different harness; see
   the script's own docstring before citing this number anywhere else.
+- **Same public benchmark suite, 3 of 13 subsets** — `eval/jev_public_benchmark_suite.py`.
+  OpenThai-SystemOne's own model card cites a 13-dataset public benchmark (Bespoke Nimble's own
+  `docs/PUBLIC_BENCHMARKS.md` methodology): `aegis2`, `boolq`, `civil_comments`, `helpsteer2`,
+  `massive-de-DE`, `massive-en-US`, `multinli`, `paws`, `pubmedqa`, `squad2`,
+  `summeval-consistency`, `summeval-relevance`, `vitaminc-dev`. This covers 3 of those 13 (the
+  ones directly loadable via `datasets` with unambiguous ground truth), 60 real examples each,
+  fixed seed: **boolq 43/60 (71.7%), paws 37/60 (61.7%), multinli 55/60 (91.7%)** — combined
+  135/180 (75.0%). **Not a reproduction of their published 61.9/74.8/76.0 aggregate numbers** —
+  same dataset names, not a byte-identical harness, and only 3 of the 13 subsets; see the
+  script's own docstring for exactly what is and isn't covered.
 
 ## Engine cards
 
